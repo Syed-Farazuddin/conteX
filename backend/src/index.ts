@@ -1,0 +1,19 @@
+import express from "express";
+import cors from "cors";
+import { config } from "./config/index.js";
+import { uploadRouter } from "./routes/upload.route.js";
+
+const app = express();
+
+app.use(cors({ origin: config.corsOrigin }));
+app.use(express.json());
+
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok" });
+});
+
+app.use("/api/upload", uploadRouter);
+
+app.listen(config.port, () => {
+  console.log(`Backend running on http://localhost:${config.port}`);
+});
