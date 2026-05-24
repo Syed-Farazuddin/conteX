@@ -51,6 +51,7 @@ export type PhotoActionParams = {
   backgroundUrl?: string;
   backgroundScene?: string;
   backgroundSource?: string;
+  backgroundOrientation?: "landscape" | "portrait" | "square";
 };
 
 /** Result URL is always a blob: URL — caller must revoke when done. */

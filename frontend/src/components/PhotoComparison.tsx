@@ -71,7 +71,7 @@ export default function PhotoComparison({
             <img
               src={processed}
               alt="Processed result"
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
             />
             <div className="pointer-events-none absolute inset-0 bg-linear-to-tr from-cyan-500/10 via-transparent to-violet-500/10" />
           </div>

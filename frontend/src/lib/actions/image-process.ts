@@ -1,12 +1,13 @@
 import {
   aspectRatioValue,
+  bottomAnchoredCropRect,
   centerCropRect,
   configureHighQualityCanvas,
   drawImageCover,
   RESIZE_PRESETS,
 } from "./canvas-utils";
 import { canvasToBlobUrl, loadImage } from "./load-image";
-import type { AspectRatioKey, PhotoActionFn, PhotoActionParams, ResizePresetKey } from "./types";
+import type { AspectRatioKey, PhotoActionFn, ResizePresetKey } from "./types";
 
 async function exportCanvas(canvas: HTMLCanvasElement) {
   return canvasToBlobUrl(canvas, "image/png");
@@ -16,7 +17,14 @@ export function createCropAction(ratio: AspectRatioKey): PhotoActionFn {
   return async (sourceUrl) => {
     const img = await loadImage(sourceUrl);
     const targetRatio = aspectRatioValue(ratio);
-    const crop = centerCropRect(img.naturalWidth, img.naturalHeight, targetRatio);
+    const crop =
+      ratio === "9:16"
+        ? bottomAnchoredCropRect(
+            img.naturalWidth,
+            img.naturalHeight,
+            targetRatio,
+          )
+        : centerCropRect(img.naturalWidth, img.naturalHeight, targetRatio);
 
     const canvas = document.createElement("canvas");
     canvas.width = crop.width;
@@ -72,11 +80,32 @@ export const adjustEnhance: PhotoActionFn = async (sourceUrl, params) => {
   if (!ctx) throw new Error("Canvas not supported");
 
   configureHighQualityCanvas(ctx);
-  ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
   ctx.drawImage(img, 0, 0);
+
+  const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = clamp255(data[i] * brightness);
+    data[i + 1] = clamp255(data[i + 1] * brightness);
+    data[i + 2] = clamp255(data[i + 2] * brightness);
+    const gray =
+      0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    data[i] = clamp255(gray + (data[i] - gray) * contrast);
+    data[i + 1] = clamp255(gray + (data[i + 1] - gray) * contrast);
+    data[i + 2] = clamp255(gray + (data[i + 2] - gray) * contrast);
+    const g2 =
+      0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    data[i] = clamp255(g2 + (data[i] - g2) * saturation);
+    data[i + 1] = clamp255(g2 + (data[i + 1] - g2) * saturation);
+    data[i + 2] = clamp255(g2 + (data[i + 2] - g2) * saturation);
+  }
+  ctx.putImageData(new ImageData(data, canvas.width, canvas.height), 0, 0);
 
   return exportCanvas(canvas);
 };
+
+function clamp255(value: number) {
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
 
 export const rotate90: PhotoActionFn = async (sourceUrl) => {
   const img = await loadImage(sourceUrl);

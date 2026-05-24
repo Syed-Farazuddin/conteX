@@ -1,10 +1,15 @@
 import { pickRandomBackgroundImage } from "@/app/constants/constant";
 import {
+  analyzeSubjectFraming,
+  assessCutoutQuality,
   computeSubjectPlacement,
   configureHighQualityCanvas,
   drawImageCover,
+  drawSubjectCutout,
   getSubjectContentBounds,
-  resolveCanvasSize,
+  inferCompositeAspect,
+  resolveCanvasSizeForFraming,
+  resolveSmartPosition,
 } from "./canvas-utils";
 import { clearBackground } from "./clear-background";
 import { canvasToBlobUrl, loadImage } from "./load-image";
@@ -32,9 +37,30 @@ function resolvePosition(position?: Partial<SubjectPosition>): SubjectPosition {
  * and places the subject using top / left / right / bottom inset percentages.
  * Uses params.backgroundUrl from AI when provided, otherwise local catalog.
  */
+async function buildSubjectCutout(sourceUrl: string): Promise<string> {
+  let cutoutUrl = await clearBackground(sourceUrl);
+  let subject = await loadImage(cutoutUrl, false);
+  let quality = assessCutoutQuality(subject, getSubjectContentBounds(subject));
+
+  if (quality.clearlyFailed) {
+    URL.revokeObjectURL(cutoutUrl);
+    cutoutUrl = await clearBackground(sourceUrl);
+    subject = await loadImage(cutoutUrl, false);
+    quality = assessCutoutQuality(subject, getSubjectContentBounds(subject));
+  }
+
+  if (quality.clearlyFailed) {
+    console.warn(
+      "[add-background] cutout still looks opaque after retry; compositing anyway",
+    );
+  }
+
+  return cutoutUrl;
+}
+
 export const backgroundAdder: PhotoActionFn = async (sourceUrl, params) => {
   const position = resolvePosition(params?.position);
-  const cutoutUrl = await clearBackground(sourceUrl);
+  const cutoutUrl = await buildSubjectCutout(sourceUrl);
   const backgroundUrl = params?.backgroundUrl ?? pickRandomBackgroundImage();
 
   try {
@@ -43,7 +69,24 @@ export const backgroundAdder: PhotoActionFn = async (sourceUrl, params) => {
       loadImage(cutoutUrl, false),
     ]);
 
-    const { width, height } = resolveCanvasSize(background, subject);
+    const contentBounds = getSubjectContentBounds(subject);
+    const framing = contentBounds
+      ? analyzeSubjectFraming(subject, contentBounds)
+      : null;
+
+    const targetAspect = inferCompositeAspect(
+      framing,
+      subject,
+      params?.backgroundOrientation,
+    );
+
+    const { width, height } = resolveCanvasSizeForFraming(
+      background,
+      subject,
+      framing,
+      contentBounds,
+      { targetAspect },
+    );
 
     const canvas = document.createElement("canvas");
     canvas.width = width;
@@ -54,15 +97,23 @@ export const backgroundAdder: PhotoActionFn = async (sourceUrl, params) => {
     configureHighQualityCanvas(ctx);
     drawImageCover(ctx, background, width, height);
 
-    const contentBounds = getSubjectContentBounds(subject);
+    const smartPosition = framing
+      ? resolveSmartPosition(position, framing)
+      : position;
+
     const { x, y, w, h, sx, sy, sw, sh } = computeSubjectPlacement(
       width,
       height,
       subject,
-      position,
+      smartPosition,
       contentBounds,
+      {
+        maximizeFill: true,
+        placementMode: framing?.mode ?? "default",
+      },
     );
-    ctx.drawImage(subject, sx, sy, sw, sh, x, y, w, h);
+
+    drawSubjectCutout(ctx, subject, { x, y, w, h, sx, sy, sw, sh });
 
     return await canvasToBlobUrl(canvas, "image/png");
   } finally {

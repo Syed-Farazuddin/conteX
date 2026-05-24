@@ -37,7 +37,30 @@ export async function planAiPipeline(imageUrl: string): Promise<{
     throw new Error("AI returned no valid actions");
   }
 
-  return { plan: { ...plan, actions }, meta };
+  return { plan: { ...plan, actions: reorderPipelineForQuality(actions) }, meta };
+}
+
+/**
+ * Cut out before color filters — enhance-on-original softens edges and causes halos.
+ */
+function reorderPipelineForQuality(actions: PipelineStep[]): PipelineStep[] {
+  const enhanceSteps = actions.filter((s) => s.action === "adjust-enhance");
+  if (enhanceSteps.length === 0) return actions;
+
+  const hasAddBackground = actions.some((s) => s.action === "add-background");
+  if (!hasAddBackground) return actions;
+
+  const withoutEnhance = actions.filter((s) => s.action !== "adjust-enhance");
+  const reordered: PipelineStep[] = [];
+
+  for (const step of withoutEnhance) {
+    reordered.push(step);
+    if (step.action === "add-background") {
+      reordered.push(...enhanceSteps);
+    }
+  }
+
+  return reordered;
 }
 
 /** Run each action in order; output of step N feeds step N+1. */

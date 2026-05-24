@@ -84,7 +84,9 @@ ADD-BACKGROUND POSITIONING (REQUIRED when using add-background):
 - bottom (with verticalAlign "bottom"): tiny margin below the subject's feet — 0 = flush to frame bottom, 2-4 = small breathing room. NOT a large value.
 - ALWAYS include verticalAlign and horizontalAlign.
 - FULL-BODY people: verticalAlign "bottom", bottom 0-3, top 28-42, left/right 10-25 toward open space.
-- WAIST-UP / headshot: verticalAlign "bottom", bottom 0-2, top 18-30 (higher top = smaller subject, more headroom).
+- WAIST-UP / headshot / selfie: verticalAlign "bottom", bottom 0-1, top 2-8 (subject should fill the frame; never top 25+).
+- SELFIE with hair cropped at top of source: use bottom 0, top 0 — the app detects edge-crop and fills top-to-bottom automatically.
+- WAIST-UP (legs cut off, subject touches bottom of source): bottom 0, top 0-6 — app anchors to frame bottom.
 - LOGOS / flat graphics: verticalAlign "center", horizontalAlign "center", symmetric insets 12-20.
 - NEVER use equal insets on all sides for standing people — that causes floating mid-frame.
 - Pick backgroundSearchQuery scenes with open foreground / negative space, not busy center objects.
@@ -125,7 +127,7 @@ CRITICAL RULES:
 1. GROUNDING: verticalAlign "bottom" with bottom 0-3 so feet/base sit on the frame bottom — never floating. Large bottom values create a visible gap.
 2. AVOID OBSTRUCTIONS: Do NOT place the subject on statues, sculptures, furniture, signs, or central focal objects. Shift horizontalAlign left or right toward empty pavement, grass, or sky.
 3. FULL-BODY: top 28-42, bottom 0-3, left/right 10-28 — tighter on the cluttered side, wider on open space.
-4. WAIST-UP: top 18-30, bottom 0-2, verticalAlign bottom.
+4. WAIST-UP / SELFIE: top 2-8, bottom 0-1, verticalAlign bottom — maximize subject size, minimal headroom.
 5. SCALE: Smaller left+right insets = larger subject. Subject should feel naturally sized for the scene.
 6. HORIZON: Align the subject's base with visible ground plane, sidewalk, or floor in the background.`;
 

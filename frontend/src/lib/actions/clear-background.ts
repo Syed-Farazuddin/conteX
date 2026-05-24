@@ -6,6 +6,7 @@ export const clearBackground: PhotoActionFn = async (sourceUrl, _params) => {
 
   const blob = await removeBackground(sourceUrl, {
     model: "isnet",
+    rescale: false,
     output: {
       format: "image/png",
       quality: 1,
