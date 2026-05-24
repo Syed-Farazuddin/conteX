@@ -61,21 +61,68 @@ export class AiService {
     imageUrl: string,
     prompt: string,
     options: ChatOptions = {},
+    systemPrompt?: string,
   ): Promise<string> {
     const client = this.getClient();
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
+
+    if (systemPrompt) {
+      messages.push({ role: "system", content: systemPrompt });
+    }
+
+    messages.push({
+      role: "user",
+      content: [
+        { type: "text", text: prompt },
+        { type: "image_url", image_url: { url: imageUrl } },
+      ],
+    });
+
     const response = await client.chat.completions.create({
       model: options.model ?? config.openAiVisionModel,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            { type: "image_url", image_url: { url: imageUrl } },
-          ],
-        },
-      ],
+      messages,
       temperature: options.temperature ?? 0.4,
       max_tokens: options.maxTokens ?? 1024,
+    });
+
+    const content = response.choices[0]?.message?.content?.trim();
+    if (!content) {
+      throw new Error("OpenAI returned an empty vision response");
+    }
+
+    return content;
+  }
+
+  /** Vision helper — analyze multiple images in one request. */
+  async analyzeImages(
+    imageUrls: string[],
+    prompt: string,
+    options: ChatOptions = {},
+    systemPrompt?: string,
+  ): Promise<string> {
+    const client = this.getClient();
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
+
+    if (systemPrompt) {
+      messages.push({ role: "system", content: systemPrompt });
+    }
+
+    messages.push({
+      role: "user",
+      content: [
+        { type: "text", text: prompt },
+        ...imageUrls.map((url) => ({
+          type: "image_url" as const,
+          image_url: { url },
+        })),
+      ],
+    });
+
+    const response = await client.chat.completions.create({
+      model: options.model ?? config.openAiVisionModel,
+      messages,
+      temperature: options.temperature ?? 0.3,
+      max_tokens: options.maxTokens ?? 512,
     });
 
     const content = response.choices[0]?.message?.content?.trim();

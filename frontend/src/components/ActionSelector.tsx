@@ -1,22 +1,23 @@
 "use client";
 
+import { useState } from "react";
 import { actionList, type ActionKey } from "@/lib/actions";
 
-const categoryOrder = [
-  "segmentation",
-  "composite",
-  "frame",
-  "color",
-  "transform",
-] as const;
+const AI_ACTION_KEY: ActionKey = "ai-auto-edit";
 
-const categoryLabels: Record<(typeof categoryOrder)[number], string> = {
-  segmentation: "Cutout",
-  composite: "Composite",
-  frame: "Frame & size",
-  color: "Color",
-  transform: "Transform",
-};
+const MANUAL_ACTION_ORDER: ActionKey[] = [
+  "clear-background",
+  "add-background",
+  "adjust-enhance",
+  "tilt-subject",
+  "crop-16-9",
+  "crop-9-16",
+  "crop-1-1",
+  "resize-1080p",
+  "resize-vertical",
+  "rotate-90",
+  "flip-horizontal",
+];
 
 type ActionSelectorProps = {
   value: ActionKey;
@@ -29,44 +30,75 @@ export default function ActionSelector({
   onChange,
   disabled = false,
 }: ActionSelectorProps) {
-  return (
-    <div className="w-full space-y-4">
-      <p className="text-center text-xs font-medium uppercase tracking-wider text-white/40">
-        Processing action
-      </p>
-      {categoryOrder.map((category) => {
-        const items = actionList.filter((a) => a.category === category);
-        if (items.length === 0) return null;
+  const isAi = value === AI_ACTION_KEY;
+  const [showManual, setShowManual] = useState(false);
 
-        return (
-          <div key={category} className="space-y-2">
-            <p className="text-[10px] font-medium uppercase tracking-widest text-white/30">
-              {categoryLabels[category]}
-            </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {items.map((action) => {
-                const selected = value === action.key;
-                return (
-                  <button
-                    key={action.key}
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => onChange(action.key)}
-                    title={action.description}
-                    className={`rounded-full px-3 py-1.5 text-xs font-medium transition sm:px-4 sm:py-2 sm:text-sm ${
-                      selected
-                        ? "bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-400/50"
-                        : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80"
-                    } disabled:opacity-50`}
-                  >
-                    {action.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
+  const aiAction = actionList.find((a) => a.key === AI_ACTION_KEY);
+  const manualActions = MANUAL_ACTION_ORDER.map((key) =>
+    actionList.find((a) => a.key === key),
+  ).filter(Boolean);
+
+  return (
+    <div className="w-full space-y-3">
+      {aiAction && (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => onChange(AI_ACTION_KEY)}
+          className={`w-full rounded-2xl border px-4 py-3.5 text-left transition ${
+            isAi
+              ? "border-violet-400/50 bg-linear-to-r from-violet-500/20 to-fuchsia-500/15 ring-1 ring-violet-400/40"
+              : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]"
+          } disabled:opacity-50`}
+        >
+          <p className="text-sm font-semibold text-white">{aiAction.label}</p>
+          <p className="mt-0.5 text-xs text-white/45">{aiAction.description}</p>
+          {isAi && (
+            <span className="mt-2 inline-block rounded-full bg-violet-500/30 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-violet-200">
+              Recommended
+            </span>
+          )}
+        </button>
+      )}
+
+      <div className="flex items-center justify-between px-1">
+        <p className="text-[10px] font-medium uppercase tracking-widest text-white/30">
+          Manual tools
+        </p>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => setShowManual((open) => !open)}
+          className="text-[11px] text-white/40 transition hover:text-white/70 disabled:opacity-50"
+        >
+          {showManual ? "Hide" : "Show"}
+        </button>
+      </div>
+
+      {showManual && (
+        <div className="grid grid-cols-3 gap-1.5 rounded-xl border border-white/10 bg-black/20 p-2 sm:grid-cols-4">
+          {manualActions.map((action) => {
+            if (!action) return null;
+            const selected = value === action.key;
+            return (
+              <button
+                key={action.key}
+                type="button"
+                disabled={disabled}
+                onClick={() => onChange(action.key)}
+                title={action.description}
+                className={`rounded-lg px-2 py-2 text-center text-[11px] font-medium leading-tight transition ${
+                  selected
+                    ? "bg-cyan-500/20 text-cyan-100 ring-1 ring-cyan-400/40"
+                    : "bg-white/5 text-white/55 hover:bg-white/10 hover:text-white/80"
+                } disabled:opacity-50`}
+              >
+                {action.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

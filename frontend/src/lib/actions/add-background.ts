@@ -19,21 +19,26 @@ function resolvePosition(position?: Partial<SubjectPosition>): SubjectPosition {
     left: position?.left ?? DEFAULT_SUBJECT_POSITION.left,
     right: position?.right ?? DEFAULT_SUBJECT_POSITION.right,
     bottom: position?.bottom ?? DEFAULT_SUBJECT_POSITION.bottom,
+    verticalAlign:
+      position?.verticalAlign ?? DEFAULT_SUBJECT_POSITION.verticalAlign,
+    horizontalAlign:
+      position?.horizontalAlign ?? DEFAULT_SUBJECT_POSITION.horizontalAlign,
   };
 }
 
 /**
  * Removes the subject background, composites onto a random catalog background,
  * and places the subject using top / left / right / bottom inset percentages.
+ * Uses params.backgroundUrl from AI when provided, otherwise local catalog.
  */
 export const backgroundAdder: PhotoActionFn = async (sourceUrl, params) => {
   const position = resolvePosition(params?.position);
   const cutoutUrl = await clearBackground(sourceUrl);
-  const backgroundUrl = pickRandomBackgroundImage();
+  const backgroundUrl = params?.backgroundUrl ?? pickRandomBackgroundImage();
 
   try {
     const [background, subject] = await Promise.all([
-      loadImage(backgroundUrl, true),
+      loadImage(backgroundUrl, backgroundUrl.startsWith("http")),
       loadImage(cutoutUrl, false),
     ]);
 

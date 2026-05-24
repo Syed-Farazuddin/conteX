@@ -16,6 +16,8 @@ export type SubjectPosition = {
   left: number;
   right: number;
   bottom: number;
+  verticalAlign?: "top" | "center" | "bottom";
+  horizontalAlign?: "left" | "center" | "right";
 };
 
 export type SubjectTilt = {

@@ -24,7 +24,7 @@ export type {
 
 export { DEFAULT_SUBJECT_POSITION, DEFAULT_SUBJECT_TILT } from "./types";
 
-export const DEFAULT_ACTION_KEY: ActionKey = "clear-background";
+export const DEFAULT_ACTION_KEY: ActionKey = "ai-auto-edit";
 
 export const actionMap: Record<ActionKey, PhotoAction> = {
   "clear-background": {
@@ -135,6 +135,17 @@ export const actionMap: Record<ActionKey, PhotoAction> = {
     },
     run: tiltSubject,
   },
+  "ai-auto-edit": {
+    key: "ai-auto-edit",
+    label: "AI Auto Edit",
+    description:
+      "AI analyzes your photo and runs the best actions automatically",
+    scanningLabel: "AI ANALYZING",
+    category: "ai",
+    run: async () => {
+      throw new Error("AI Auto Edit uses the pipeline runner");
+    },
+  },
 };
 
 export { tiltSubject } from "./tilt-subject";
@@ -142,6 +153,13 @@ export { tiltSubject } from "./tilt-subject";
 export { backgroundAdder } from "./add-background";
 export { clearBackground } from "./clear-background";
 export { mergeActionParams } from "./merge-params";
+export {
+  planAiPipeline,
+  runPhotoActionPipeline,
+  type PipelinePlan,
+  type PipelineProgress,
+  type PipelineStep,
+} from "./pipeline";
 
 export const actionList = Object.values(actionMap);
 

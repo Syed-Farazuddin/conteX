@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  DEFAULT_SUBJECT_POSITION,
-  type SubjectPosition,
-} from "@/lib/actions";
+import { DEFAULT_SUBJECT_POSITION, type SubjectPosition } from "@/lib/actions";
 
 type SubjectPositionControlsProps = {
   value: SubjectPosition;
@@ -60,7 +57,8 @@ export default function SubjectPositionControls({
         ))}
       </div>
       <p className="mt-2 text-center text-[11px] text-white/35">
-        Distance from each edge — subject stays inside the box
+        Insets define the placement box — subject anchors to the bottom by
+        default
       </p>
     </div>
   );

@@ -1,9 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import ActionSelector from "./ActionSelector";
 import PhotoComparison from "./PhotoComparison";
 import PhotoScanOverlay from "./PhotoScanOverlay";
+import PipelineProgressPanel from "./PipelineProgressPanel";
 import SubjectPositionControls from "./SubjectPositionControls";
 import SubjectTiltControls from "./SubjectTiltControls";
 import {
@@ -11,9 +18,13 @@ import {
   DEFAULT_ACTION_KEY,
   DEFAULT_SUBJECT_POSITION,
   DEFAULT_SUBJECT_TILT,
+  planAiPipeline,
   runPhotoAction,
+  runPhotoActionPipeline,
   type ActionKey,
   type PhotoActionParams,
+  type PipelinePlan,
+  type PipelineProgress,
   type SubjectPosition,
   type SubjectTilt,
 } from "@/lib/actions";
@@ -41,21 +52,27 @@ export default function PhotoUpload() {
   const [actionParams, setActionParams] = useState<PhotoActionParams>(
     () => actionMap[DEFAULT_ACTION_KEY].defaultParams ?? {},
   );
+  const [pipelinePlan, setPipelinePlan] = useState<PipelinePlan | null>(null);
+  const [pipelineProgress, setPipelineProgress] =
+    useState<PipelineProgress | null>(null);
+  const [pipelinePhase, setPipelinePhase] = useState<
+    "analyzing" | "running" | "done" | null
+  >(null);
 
   const currentAction = actionMap[activeAction];
+  const isAiPipeline = activeAction === "ai-auto-edit";
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     previewRef.current = preview;
-  }, [preview]);
-
-  useEffect(() => {
     activeActionRef.current = activeAction;
-    setActionParams(actionMap[activeAction].defaultParams ?? {});
-  }, [activeAction]);
-
-  useEffect(() => {
     actionParamsRef.current = actionParams;
-  }, [actionParams]);
+  }, [preview, activeAction, actionParams]);
+
+  const handleActionChange = useCallback((key: ActionKey) => {
+    activeActionRef.current = key;
+    setActiveAction(key);
+    setActionParams(actionMap[key].defaultParams ?? {});
+  }, []);
 
   const setSubjectPosition = (position: SubjectPosition) => {
     setActionParams((prev) => ({ ...prev, position }));
@@ -75,8 +92,9 @@ export default function PhotoUpload() {
     ...actionParams.tilt,
   };
 
-  const showPositionControls = activeAction === "add-background";
-  const showTiltControls = activeAction === "tilt-subject";
+  const showPositionControls =
+    activeAction === "add-background" && !isAiPipeline;
+  const showTiltControls = activeAction === "tilt-subject" && !isAiPipeline;
 
   const revokeProcessed = useCallback((url: string | null) => {
     if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
@@ -101,18 +119,41 @@ export default function PhotoUpload() {
 
       setIsGenerating(true);
       try {
-        const processed = await runPhotoAction(
-          actionKey,
-          source,
-          actionParamsRef.current,
-        );
-        setProcessedPreview((prev) => {
-          revokeProcessed(prev);
-          return processed;
-        });
+        if (actionKey === "ai-auto-edit") {
+          setPipelinePlan(null);
+          setPipelineProgress(null);
+          setPipelinePhase("analyzing");
+
+          const plan = await planAiPipeline(source);
+          setPipelinePlan(plan);
+          setPipelinePhase("running");
+
+          const { finalUrl } = await runPhotoActionPipeline(
+            source,
+            plan.actions,
+            (progress) => setPipelineProgress(progress),
+          );
+
+          setProcessedPreview((prev) => {
+            revokeProcessed(prev);
+            return finalUrl;
+          });
+          setPipelinePhase("done");
+        } else {
+          const processed = await runPhotoAction(
+            actionKey,
+            source,
+            actionParamsRef.current,
+          );
+          setProcessedPreview((prev) => {
+            revokeProcessed(prev);
+            return processed;
+          });
+        }
       } catch (err) {
         console.error(`Action "${actionKey}" failed:`, err);
         setProcessedPreview(source);
+        setPipelinePhase(null);
       } finally {
         setIsGenerating(false);
         setStatus(nextStatus);
@@ -126,7 +167,15 @@ export default function PhotoUpload() {
       clearScanTimer();
       setScanPhase(phase);
       setStatus("scanning");
-      const duration = phase === "upload" ? SCAN_ON_UPLOAD_MS : SCAN_ON_SEND_MS;
+      const isAi = activeActionRef.current === "ai-auto-edit";
+      const duration =
+        phase === "upload"
+          ? isAi
+            ? 900
+            : SCAN_ON_UPLOAD_MS
+          : isAi
+            ? 900
+            : SCAN_ON_SEND_MS;
       scanTimerRef.current = setTimeout(() => {
         scanTimerRef.current = null;
         void finishScan(nextStatus);
@@ -191,6 +240,9 @@ export default function PhotoUpload() {
     setFileName("");
     setStatus("idle");
     setIsGenerating(false);
+    setPipelinePlan(null);
+    setPipelineProgress(null);
+    setPipelinePhase(null);
     if (inputRef.current) inputRef.current.value = "";
   };
 
@@ -199,8 +251,15 @@ export default function PhotoUpload() {
     processedPreview &&
     (status === "preview" || status === "received");
 
-  const scanLabel =
-    scanPhase === "send" ? "TRANSMITTING PHOTO" : currentAction.scanningLabel;
+  const scanLabel = isAiPipeline
+    ? pipelinePhase === "running"
+      ? "RUNNING AI PIPELINE"
+      : pipelinePhase === "done"
+        ? "PIPELINE COMPLETE"
+        : "AI ANALYZING IMAGE"
+    : scanPhase === "send"
+      ? "TRANSMITTING PHOTO"
+      : currentAction.scanningLabel;
 
   if (status === "received" && showComparison) {
     return (
@@ -249,13 +308,22 @@ export default function PhotoUpload() {
 
   if (status === "scanning" && preview) {
     return (
-      <div className="w-full max-w-lg space-y-4">
+      <div
+        className={`w-full space-y-4 ${isAiPipeline ? "max-w-4xl" : "max-w-lg"}`}
+      >
         <PhotoScanOverlay
-          key={`${scanPhase}-${activeAction}`}
+          key={`${scanPhase}-${activeAction}-${pipelinePhase ?? "idle"}`}
           preview={preview}
           fileName={fileName}
           label={scanLabel}
         />
+        {isAiPipeline && (
+          <PipelineProgressPanel
+            plan={pipelinePlan}
+            progress={pipelineProgress}
+            phase={pipelinePhase ?? "analyzing"}
+          />
+        )}
         <p className="text-center text-xs text-white/40">
           Running: {currentAction.label}
           {isGenerating ? " — processing…" : ""}
@@ -270,16 +338,18 @@ export default function PhotoUpload() {
         <PhotoComparison
           original={preview}
           processed={processedPreview}
-          processedLabel={currentAction.label}
+          processedLabel={isAiPipeline ? "AI Enhanced" : currentAction.label}
           fileName={fileName}
           showTransparencyGrid={activeAction === "clear-background"}
         />
 
-        <ActionSelector
-          value={activeAction}
-          onChange={setActiveAction}
-          disabled={isGenerating}
-        />
+        {isAiPipeline && pipelinePlan && (
+          <PipelineProgressPanel
+            plan={pipelinePlan}
+            progress={pipelineProgress}
+            phase="done"
+          />
+        )}
 
         {showPositionControls && (
           <SubjectPositionControls
@@ -336,7 +406,7 @@ export default function PhotoUpload() {
         onChange={onInputChange}
       />
 
-      <ActionSelector value={activeAction} onChange={setActiveAction} />
+      <ActionSelector value={activeAction} onChange={handleActionChange} />
 
       {showPositionControls && (
         <SubjectPositionControls
@@ -346,10 +416,7 @@ export default function PhotoUpload() {
       )}
 
       {showTiltControls && (
-        <SubjectTiltControls
-          value={subjectTilt}
-          onChange={setSubjectTilt}
-        />
+        <SubjectTiltControls value={subjectTilt} onChange={setSubjectTilt} />
       )}
 
       <div

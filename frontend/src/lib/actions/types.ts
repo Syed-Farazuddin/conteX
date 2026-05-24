@@ -4,13 +4,18 @@ export type SubjectPosition = {
   left: number;
   right: number;
   bottom: number;
+  /** Where the subject sits inside the inset box. Default: bottom for people. */
+  verticalAlign?: "top" | "center" | "bottom";
+  horizontalAlign?: "left" | "center" | "right";
 };
 
 export const DEFAULT_SUBJECT_POSITION: SubjectPosition = {
-  top: 8,
-  left: 8,
-  right: 8,
-  bottom: 12,
+  top: 32,
+  left: 12,
+  right: 12,
+  bottom: 6,
+  verticalAlign: "bottom",
+  horizontalAlign: "center",
 };
 
 /** Slight subject tilt and nudge (degrees: negative = left, positive = right). */
@@ -42,6 +47,10 @@ export type PhotoActionParams = {
   brightness?: number;
   contrast?: number;
   saturation?: number;
+  /** Background image URL from AI pipeline (OpenAI or other HTTPS source). */
+  backgroundUrl?: string;
+  backgroundScene?: string;
+  backgroundSource?: string;
 };
 
 /** Result URL is always a blob: URL — caller must revoke when done. */
@@ -61,14 +70,21 @@ export type ActionKey =
   | "adjust-enhance"
   | "rotate-90"
   | "flip-horizontal"
-  | "tilt-subject";
+  | "tilt-subject"
+  | "ai-auto-edit";
 
 export type PhotoAction = {
   key: ActionKey;
   label: string;
   description: string;
   scanningLabel: string;
-  category: "segmentation" | "composite" | "frame" | "color" | "transform";
+  category:
+    | "segmentation"
+    | "composite"
+    | "frame"
+    | "color"
+    | "transform"
+    | "ai";
   defaultParams?: PhotoActionParams;
   run: PhotoActionFn;
 };

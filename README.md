@@ -9,7 +9,7 @@ cd frontend
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Upload a photo, then click **Send photo** to see the **Photo Received** confirmation.
+Open [http://localhost:3000](http://localhost:3000).
 
 ## Backend (structure only)
 
@@ -19,9 +19,29 @@ npm install
 npm run dev
 ```
 
+## Run both (from repo root)
+
+**Terminal:**
+
+```bash
+npm install
+npm run dev
+```
+
+**Cursor / VS Code:** `Terminal` → `Run Task…`
+
+| Task            | What it does                                          |
+| --------------- | ----------------------------------------------------- |
+| `dev: all`      | Backend + frontend (default build task)               |
+| `backend: dev`  | API on [http://localhost:4000](http://localhost:4000) |
+| `frontend: dev` | App on [http://localhost:3000](http://localhost:3000) |
+
+Shortcut: `Cmd+Shift+B` (Mac) or `Ctrl+Shift+B` (Windows/Linux) runs **`dev: all`**.
+
 - `GET /health` — health check
 - `POST /api/upload` — stub upload endpoint (returns `{ message: "Photo received" }`)
 - `GET /api/ai/status` — check if `OPEN_AI_API_KEY` is configured
+- `POST /api/ai/plan-pipeline` — vision AI returns ordered `{ summary, actions[] }` for the image
 - `POST /api/ai/chat` — OpenAI chat (`{ "prompt": "..." }` or `{ "messages": [...] }`)
 
 Copy `backend/.env.example` to `backend/.env` and set `OPEN_AI_API_KEY`.

@@ -69,6 +69,8 @@ export type SubjectPosition = {
   left: number;
   right: number;
   bottom: number;
+  verticalAlign?: "top" | "center" | "bottom";
+  horizontalAlign?: "left" | "center" | "right";
 };
 
 /** Place subject inside a box defined by % insets from each edge. */
@@ -89,12 +91,23 @@ export function computeSubjectPlacement(
   const scale = Math.min(
     boxW / subject.naturalWidth,
     boxH / subject.naturalHeight,
-    1,
+    1.8,
   );
   const w = subject.naturalWidth * scale;
   const h = subject.naturalHeight * scale;
-  const x = left + (boxW - w) / 2;
-  const y = top + (boxH - h) / 2;
+
+  const vAlign = position.verticalAlign ?? "bottom";
+  const hAlign = position.horizontalAlign ?? "center";
+
+  let x: number;
+  if (hAlign === "left") x = left;
+  else if (hAlign === "right") x = left + boxW - w;
+  else x = left + (boxW - w) / 2;
+
+  let y: number;
+  if (vAlign === "top") y = top;
+  else if (vAlign === "bottom") y = top + boxH - h;
+  else y = top + (boxH - h) / 2;
 
   return { x, y, w, h };
 }

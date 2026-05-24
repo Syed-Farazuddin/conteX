@@ -1,10 +1,16 @@
 import type { Request, Response } from "express";
 import { aiService } from "../services/ai.service.js";
+import { backgroundSearchService } from "../services/background-search.service.js";
+import { pipelineService } from "../services/pipeline.service.js";
 
 export class AiController {
   status(_req: Request, res: Response) {
     res.json({
       configured: aiService.isConfigured(),
+      backgroundSearch: {
+        configured: backgroundSearchService.isConfigured(),
+        providers: backgroundSearchService.getConfiguredProviders(),
+      },
     });
   }
 
@@ -37,6 +43,26 @@ export class AiController {
       res.json({ success: true, data: { reply } });
     } catch (err) {
       const message = err instanceof Error ? err.message : "AI request failed";
+      res.status(500).json({ success: false, message });
+    }
+  }
+
+  async planPipeline(req: Request, res: Response) {
+    try {
+      const { imageBase64 } = req.body ?? {};
+
+      if (!imageBase64 || typeof imageBase64 !== "string") {
+        return res.status(400).json({
+          success: false,
+          message: "Provide `imageBase64` (data URL or raw base64 string)",
+        });
+      }
+
+      const plan = await pipelineService.planFromImageBase64(imageBase64);
+      res.json({ success: true, data: plan });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Pipeline planning failed";
       res.status(500).json({ success: false, message });
     }
   }

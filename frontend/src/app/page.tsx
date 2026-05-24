@@ -18,8 +18,8 @@ export default function Home() {
             Share a moment
           </h1>
           <p className="mx-auto mt-4 max-w-md text-base text-white/50">
-            Pick an action, upload a photo, and we&apos;ll process it — starting
-            with background removal.
+            Upload a photo — AI Auto Edit will analyze it and run the best steps
+            automatically.
           </p>
         </header>
 
