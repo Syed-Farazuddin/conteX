@@ -17,3 +17,314 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
+
+/* Photo scan animation */
+@keyframes scan-rotate {
+  0% {
+    transform: perspective(900px) rotateY(-8deg) rotateX(4deg) rotateZ(0deg)
+      scale(0.96);
+  }
+  25% {
+    transform: perspective(900px) rotateY(8deg) rotateX(-2deg) rotateZ(90deg)
+      scale(1);
+  }
+  50% {
+    transform: perspective(900px) rotateY(-6deg) rotateX(3deg) rotateZ(180deg)
+      scale(0.98);
+  }
+  75% {
+    transform: perspective(900px) rotateY(10deg) rotateX(-3deg) rotateZ(270deg)
+      scale(1);
+  }
+  100% {
+    transform: perspective(900px) rotateY(-8deg) rotateX(4deg) rotateZ(360deg)
+      scale(0.96);
+  }
+}
+
+@keyframes scan-beam-y {
+  0% {
+    top: -4%;
+    opacity: 0.4;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    top: 104%;
+    opacity: 0.4;
+  }
+}
+
+@keyframes scan-beam-x {
+  0% {
+    left: -4%;
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    left: 104%;
+    opacity: 0.3;
+  }
+}
+
+@keyframes scan-grid-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes scan-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes scan-flash {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  48% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.35;
+  }
+  52% {
+    opacity: 0;
+  }
+}
+
+@keyframes scan-ring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes scan-label-flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.65;
+  }
+}
+
+@keyframes scan-progress {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+@keyframes scan-ambient-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.scan-stage {
+  animation: scan-ambient-pulse 2s ease-in-out infinite;
+}
+
+.scan-ambient {
+  background:
+    radial-gradient(
+      ellipse at 50% 0%,
+      rgba(34, 211, 238, 0.25),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse at 50% 100%,
+      rgba(167, 139, 250, 0.2),
+      transparent 55%
+    );
+}
+
+.scan-rotate-wrapper {
+  transform-style: preserve-3d;
+  height: 100%;
+}
+
+.scan-image-rotate {
+  animation: scan-rotate 3.2s ease-in-out infinite;
+  filter: saturate(1.2) contrast(1.05)
+    drop-shadow(0 0 24px rgba(34, 211, 238, 0.35));
+}
+
+.scan-grid {
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.12) 1px, transparent 1px);
+  background-size: 20px 20px;
+  animation: scan-grid-pulse 1.2s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+
+.scan-line-h {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(34, 211, 238, 0.9),
+    rgba(167, 139, 250, 1),
+    rgba(34, 211, 238, 0.9),
+    transparent
+  );
+  box-shadow:
+    0 0 20px rgba(34, 211, 238, 0.9),
+    0 0 40px rgba(167, 139, 250, 0.6);
+  animation: scan-beam-y 1.8s linear infinite;
+}
+
+.scan-line-v {
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(236, 72, 153, 0.8),
+    rgba(34, 211, 238, 0.9),
+    transparent
+  );
+  box-shadow: 0 0 16px rgba(236, 72, 153, 0.7);
+  animation: scan-beam-x 2.4s linear infinite;
+}
+
+.scan-shimmer {
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.15) 45%,
+    rgba(34, 211, 238, 0.25) 50%,
+    rgba(255, 255, 255, 0.15) 55%,
+    transparent 65%
+  );
+  background-size: 200% 100%;
+  animation: scan-shimmer 1.4s linear infinite;
+}
+
+.scan-flash {
+  background: white;
+  animation: scan-flash 1.8s ease-in-out infinite;
+  mix-blend-mode: overlay;
+}
+
+.scan-rotate-ring {
+  animation: scan-ring-spin 8s linear infinite;
+}
+
+.scan-corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-color: rgba(34, 211, 238, 0.9);
+  border-style: solid;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.6);
+}
+
+.scan-corner-tl {
+  top: 8px;
+  left: 8px;
+  border-width: 3px 0 0 3px;
+}
+
+.scan-corner-tr {
+  top: 8px;
+  right: 8px;
+  border-width: 3px 3px 0 0;
+}
+
+.scan-corner-bl {
+  bottom: 8px;
+  left: 8px;
+  border-width: 0 0 3px 3px;
+}
+
+.scan-corner-br {
+  bottom: 8px;
+  right: 8px;
+  border-width: 0 3px 3px 0;
+}
+
+.scan-label {
+  animation: scan-label-flicker 0.8s step-end infinite;
+  text-shadow: 0 0 20px rgba(34, 211, 238, 0.8);
+}
+
+.scan-progress-fill {
+  animation: scan-progress 2.8s ease-out forwards;
+}
+
+/* Side-by-side comparison reveal */
+@keyframes comparison-slide-in {
+  0% {
+    opacity: 0;
+    transform: translateX(24px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes comparison-fade-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.comparison-reveal {
+  animation: comparison-fade-in 0.5s ease-out forwards;
+}
+
+.comparison-card {
+  animation: comparison-fade-in 0.45s ease-out backwards;
+}
+
+.comparison-card-processed {
+  animation: comparison-slide-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.15s
+    backwards;
+}
+
+.comparison-arrow {
+  animation: comparison-fade-in 0.4s ease-out 0.35s backwards;
+}
+
+/* Shows transparency after background removal */
+.processed-checkerboard {
+  background-color: #14141f;
+  background-image:
+    linear-gradient(45deg, #252535 25%, transparent 25%),
+    linear-gradient(-45deg, #252535 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #252535 75%),
+    linear-gradient(-45deg, transparent 75%, #252535 75%);
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    0 8px,
+    8px -8px,
+    -8px 0;
+}

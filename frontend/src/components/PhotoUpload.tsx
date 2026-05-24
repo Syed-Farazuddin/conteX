@@ -1,27 +1,162 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import ActionSelector from "./ActionSelector";
+import PhotoComparison from "./PhotoComparison";
+import PhotoScanOverlay from "./PhotoScanOverlay";
+import SubjectPositionControls from "./SubjectPositionControls";
+import SubjectTiltControls from "./SubjectTiltControls";
+import {
+  actionMap,
+  DEFAULT_ACTION_KEY,
+  DEFAULT_SUBJECT_POSITION,
+  DEFAULT_SUBJECT_TILT,
+  runPhotoAction,
+  type ActionKey,
+  type PhotoActionParams,
+  type SubjectPosition,
+  type SubjectTilt,
+} from "@/lib/actions";
 
-type Status = "idle" | "preview" | "received";
+type Status = "idle" | "scanning" | "preview" | "received";
+
+const SCAN_ON_UPLOAD_MS = 2800;
+const SCAN_ON_SEND_MS = 2400;
 
 export default function PhotoUpload() {
   const inputRef = useRef<HTMLInputElement>(null);
+  const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewRef = useRef<string | null>(null);
+  const activeActionRef = useRef<ActionKey>(DEFAULT_ACTION_KEY);
+  const actionParamsRef = useRef<PhotoActionParams>({});
   const [status, setStatus] = useState<Status>("idle");
+  const [scanPhase, setScanPhase] = useState<"upload" | "send">("upload");
+  const [activeAction, setActiveAction] =
+    useState<ActionKey>(DEFAULT_ACTION_KEY);
   const [preview, setPreview] = useState<string | null>(null);
+  const [processedPreview, setProcessedPreview] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [fileName, setFileName] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
+  const [actionParams, setActionParams] = useState<PhotoActionParams>(
+    () => actionMap[DEFAULT_ACTION_KEY].defaultParams ?? {},
+  );
 
-  const handleFile = useCallback((file: File | null) => {
-    if (!file?.type.startsWith("image/")) return;
+  const currentAction = actionMap[activeAction];
 
-    setFileName(file.name);
-    const url = URL.createObjectURL(file);
-    setPreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return url;
-    });
-    setStatus("preview");
+  useEffect(() => {
+    previewRef.current = preview;
+  }, [preview]);
+
+  useEffect(() => {
+    activeActionRef.current = activeAction;
+    setActionParams(actionMap[activeAction].defaultParams ?? {});
+  }, [activeAction]);
+
+  useEffect(() => {
+    actionParamsRef.current = actionParams;
+  }, [actionParams]);
+
+  const setSubjectPosition = (position: SubjectPosition) => {
+    setActionParams((prev) => ({ ...prev, position }));
+  };
+
+  const setSubjectTilt = (tilt: SubjectTilt) => {
+    setActionParams((prev) => ({ ...prev, tilt }));
+  };
+
+  const subjectPosition: SubjectPosition = {
+    ...DEFAULT_SUBJECT_POSITION,
+    ...actionParams.position,
+  };
+
+  const subjectTilt: SubjectTilt = {
+    ...DEFAULT_SUBJECT_TILT,
+    ...actionParams.tilt,
+  };
+
+  const showPositionControls = activeAction === "add-background";
+  const showTiltControls = activeAction === "tilt-subject";
+
+  const revokeProcessed = useCallback((url: string | null) => {
+    if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
   }, []);
+
+  const clearScanTimer = useCallback(() => {
+    if (scanTimerRef.current) {
+      clearTimeout(scanTimerRef.current);
+      scanTimerRef.current = null;
+    }
+  }, []);
+
+  const finishScan = useCallback(
+    async (nextStatus: Status) => {
+      const source = previewRef.current;
+      const actionKey = activeActionRef.current;
+
+      if (!source) {
+        setStatus(nextStatus);
+        return;
+      }
+
+      setIsGenerating(true);
+      try {
+        const processed = await runPhotoAction(
+          actionKey,
+          source,
+          actionParamsRef.current,
+        );
+        setProcessedPreview((prev) => {
+          revokeProcessed(prev);
+          return processed;
+        });
+      } catch (err) {
+        console.error(`Action "${actionKey}" failed:`, err);
+        setProcessedPreview(source);
+      } finally {
+        setIsGenerating(false);
+        setStatus(nextStatus);
+      }
+    },
+    [revokeProcessed],
+  );
+
+  const startScan = useCallback(
+    (phase: "upload" | "send", nextStatus: Status) => {
+      clearScanTimer();
+      setScanPhase(phase);
+      setStatus("scanning");
+      const duration = phase === "upload" ? SCAN_ON_UPLOAD_MS : SCAN_ON_SEND_MS;
+      scanTimerRef.current = setTimeout(() => {
+        scanTimerRef.current = null;
+        void finishScan(nextStatus);
+      }, duration);
+    },
+    [clearScanTimer, finishScan],
+  );
+
+  useEffect(() => () => clearScanTimer(), [clearScanTimer]);
+
+  const handleFile = useCallback(
+    (file: File | null) => {
+      if (!file?.type.startsWith("image/")) return;
+
+      setFileName(file.name);
+      setProcessedPreview((prev) => {
+        revokeProcessed(prev);
+        return null;
+      });
+
+      const url = URL.createObjectURL(file);
+      previewRef.current = url;
+      setPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return url;
+      });
+      startScan("upload", "preview");
+    },
+    [startScan, revokeProcessed],
+  );
 
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleFile(e.target.files?.[0] ?? null);
@@ -34,60 +169,165 @@ export default function PhotoUpload() {
   };
 
   const onSubmit = () => {
-    if (status !== "preview") return;
-    setStatus("received");
+    if (status !== "preview" || !preview) return;
+    startScan("send", "received");
+  };
+
+  const onReprocess = () => {
+    if (!preview) return;
+    setProcessedPreview((prev) => {
+      revokeProcessed(prev);
+      return null;
+    });
+    startScan("upload", "preview");
   };
 
   const onReset = () => {
+    clearScanTimer();
     if (preview) URL.revokeObjectURL(preview);
+    revokeProcessed(processedPreview);
     setPreview(null);
+    setProcessedPreview(null);
     setFileName("");
     setStatus("idle");
+    setIsGenerating(false);
     if (inputRef.current) inputRef.current.value = "";
   };
 
-  if (status === "received") {
+  const showComparison =
+    preview &&
+    processedPreview &&
+    (status === "preview" || status === "received");
+
+  const scanLabel =
+    scanPhase === "send" ? "TRANSMITTING PHOTO" : currentAction.scanningLabel;
+
+  if (status === "received" && showComparison) {
     return (
-      <div className="flex min-h-[420px] flex-col items-center justify-center rounded-3xl border border-emerald-500/30 bg-linear-to-br from-emerald-950/40 to-teal-950/20 px-8 py-16 text-center shadow-2xl shadow-emerald-900/20">
-        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/20 ring-2 ring-emerald-400/50">
-          <svg
-            className="h-10 w-10 text-emerald-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
+      <div className="w-full max-w-4xl space-y-8">
+        <PhotoComparison
+          original={preview}
+          processed={processedPreview}
+          processedLabel={currentAction.label}
+          fileName={fileName}
+          showTransparencyGrid={activeAction === "clear-background"}
+        />
+
+        <div className="flex flex-col items-center rounded-3xl border border-emerald-500/30 bg-linear-to-br from-emerald-950/40 to-teal-950/20 px-8 py-10 text-center shadow-2xl shadow-emerald-900/20">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20 ring-2 ring-emerald-400/50">
+            <svg
+              className="h-8 w-8 text-emerald-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-semibold tracking-tight text-emerald-100">
+            Photo Received
+          </h2>
+          <p className="mt-2 text-sm text-emerald-200/70">
+            {currentAction.label} complete — your processed image is ready.
+          </p>
+          <button
+            type="button"
+            onClick={onReset}
+            className="mt-8 rounded-full bg-white/10 px-8 py-3 text-sm font-medium text-white transition hover:bg-white/20"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M5 13l4 4L19 7"
-            />
-          </svg>
+            Upload another
+          </button>
         </div>
-        <h2 className="text-3xl font-semibold tracking-tight text-emerald-100">
-          Photo Received
-        </h2>
-        <p className="mt-3 max-w-sm text-emerald-200/70">
-          Your image has been uploaded successfully.
-          {fileName && (
-            <span className="mt-2 block font-mono text-sm text-emerald-300/80">
-              {fileName}
-            </span>
-          )}
+      </div>
+    );
+  }
+
+  if (status === "scanning" && preview) {
+    return (
+      <div className="w-full max-w-lg space-y-4">
+        <PhotoScanOverlay
+          key={`${scanPhase}-${activeAction}`}
+          preview={preview}
+          fileName={fileName}
+          label={scanLabel}
+        />
+        <p className="text-center text-xs text-white/40">
+          Running: {currentAction.label}
+          {isGenerating ? " — processing…" : ""}
         </p>
-        <button
-          type="button"
-          onClick={onReset}
-          className="mt-10 rounded-full bg-white/10 px-8 py-3 text-sm font-medium text-white transition hover:bg-white/20"
-        >
-          Upload another
-        </button>
+      </div>
+    );
+  }
+
+  if (status === "preview" && showComparison) {
+    return (
+      <div className="w-full max-w-4xl space-y-6">
+        <PhotoComparison
+          original={preview}
+          processed={processedPreview}
+          processedLabel={currentAction.label}
+          fileName={fileName}
+          showTransparencyGrid={activeAction === "clear-background"}
+        />
+
+        <ActionSelector
+          value={activeAction}
+          onChange={setActiveAction}
+          disabled={isGenerating}
+        />
+
+        {showPositionControls && (
+          <SubjectPositionControls
+            value={subjectPosition}
+            onChange={setSubjectPosition}
+            disabled={isGenerating}
+          />
+        )}
+
+        {showTiltControls && (
+          <SubjectTiltControls
+            value={subjectTilt}
+            onChange={setSubjectTilt}
+            disabled={isGenerating}
+          />
+        )}
+
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={onReset}
+            className="flex-1 rounded-2xl border border-white/15 py-3.5 text-sm font-medium text-white/80 transition hover:bg-white/5"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onReprocess}
+            disabled={isGenerating}
+            className="flex-1 rounded-2xl border border-cyan-400/30 py-3.5 text-sm font-medium text-cyan-200 transition hover:bg-cyan-500/10 disabled:opacity-50"
+          >
+            Reprocess
+          </button>
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={isGenerating}
+            className="flex-1 rounded-2xl bg-linear-to-r from-violet-500 to-fuchsia-500 py-3.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:opacity-90 hover:shadow-violet-500/40 disabled:opacity-50"
+          >
+            Send photo
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-lg">
+    <div className="w-full max-w-lg space-y-6">
       <input
         ref={inputRef}
         type="file"
@@ -95,6 +335,22 @@ export default function PhotoUpload() {
         className="hidden"
         onChange={onInputChange}
       />
+
+      <ActionSelector value={activeAction} onChange={setActiveAction} />
+
+      {showPositionControls && (
+        <SubjectPositionControls
+          value={subjectPosition}
+          onChange={setSubjectPosition}
+        />
+      )}
+
+      {showTiltControls && (
+        <SubjectTiltControls
+          value={subjectTilt}
+          onChange={setSubjectTilt}
+        />
+      )}
 
       <div
         role="button"
@@ -113,74 +369,36 @@ export default function PhotoUpload() {
             : "border-white/20 bg-white/5 hover:border-white/35 hover:bg-white/[0.07]"
         }`}
       >
-        {preview ? (
-          <div className="relative aspect-4/3 w-full">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={preview}
-              alt="Preview"
-              className="h-full w-full object-cover"
-            />
-            <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
-            <p className="absolute bottom-4 left-4 right-4 truncate text-sm text-white/90">
-              {fileName}
-            </p>
+        <div className="flex min-h-[280px] flex-col items-center justify-center px-8 py-12 text-center">
+          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-br from-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/30">
+            <svg
+              className="h-8 w-8 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.5}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2 8.798 2 10.5V18a2 2 0 002 2h16a2 2 0 002-2v-7.5c0-1.702-1-2.922-2.052-3.095-.377-.063-.754-.12-1.134-.175a2.31 2.31 0 01-1.64-1.055L15 5.186M12 13.5V6m0 0L9.75 8.25M12 6l2.25 2.25"
+              />
+            </svg>
           </div>
-        ) : (
-          <div className="flex min-h-[280px] flex-col items-center justify-center px-8 py-12 text-center">
-            <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-br from-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/30">
-              <svg
-                className="h-8 w-8 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2 8.798 2 10.5V18a2 2 0 002 2h16a2 2 0 002-2v-7.5c0-1.702-1-2.922-2.052-3.095-.377-.063-.754-.12-1.134-.175a2.31 2.31 0 01-1.64-1.055L15 5.186M12 13.5V6m0 0L9.75 8.25M12 6l2.25 2.25"
-                />
-              </svg>
-            </div>
-            <p className="text-lg font-medium text-white">
-              Drop your photo here
-            </p>
-            <p className="mt-2 text-sm text-white/50">
-              or click to browse · PNG, JPG, WEBP
-            </p>
-          </div>
-        )}
+          <p className="text-lg font-medium text-white">Drop your photo here</p>
+          <p className="mt-2 text-sm text-white/50">
+            {currentAction.description}
+          </p>
+        </div>
       </div>
 
-      <div className="mt-6 flex gap-3">
-        {status === "preview" ? (
-          <>
-            <button
-              type="button"
-              onClick={onReset}
-              className="flex-1 rounded-2xl border border-white/15 py-3.5 text-sm font-medium text-white/80 transition hover:bg-white/5"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={onSubmit}
-              className="flex-1 rounded-2xl bg-linear-to-r from-violet-500 to-fuchsia-500 py-3.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:opacity-90 hover:shadow-violet-500/40"
-            >
-              Send photo
-            </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="w-full rounded-2xl bg-linear-to-r from-violet-500 to-fuchsia-500 py-3.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:opacity-90"
-          >
-            Choose from device
-          </button>
-        )}
-      </div>
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        className="w-full rounded-2xl bg-linear-to-r from-violet-500 to-fuchsia-500 py-3.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:opacity-90"
+      >
+        Choose from device
+      </button>
     </div>
   );
 }

@@ -3,4 +3,7 @@ export const config = {
   corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:3000",
   uploadDir: process.env.UPLOAD_DIR ?? "./uploads",
   maxFileSizeMb: Number(process.env.MAX_FILE_SIZE_MB) || 10,
+  openAiApiKey: process.env.OPEN_AI_API_KEY?.trim() ?? "",
+  openAiModel: process.env.OPEN_AI_MODEL ?? "gpt-4o-mini",
+  openAiVisionModel: process.env.OPEN_AI_VISION_MODEL ?? "gpt-4o-mini",
 };

@@ -1,6 +1,8 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { config } from "./config/index.js";
+import { aiRouter } from "./routes/ai.route.js";
 import { uploadRouter } from "./routes/upload.route.js";
 
 const app = express();
@@ -13,6 +15,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/api/upload", uploadRouter);
+app.use("/api/ai", aiRouter);
 
 app.listen(config.port, () => {
   console.log(`Backend running on http://localhost:${config.port}`);

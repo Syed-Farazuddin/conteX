@@ -9,7 +9,7 @@ export default function Home() {
         <div className="absolute left-1/2 top-1/3 h-64 w-64 -translate-x-1/2 rounded-full bg-indigo-500/20 blur-[100px]" />
       </div>
 
-      <main className="relative mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center px-6 py-16">
+      <main className="relative mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center px-6 py-16">
         <header className="mb-12 text-center">
           <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-violet-300/80">
             ConteX
@@ -18,8 +18,8 @@ export default function Home() {
             Share a moment
           </h1>
           <p className="mx-auto mt-4 max-w-md text-base text-white/50">
-            Upload a photo from your device. When you&apos;re ready, send it and
-            we&apos;ll confirm it was received.
+            Pick an action, upload a photo, and we&apos;ll process it — starting
+            with background removal.
           </p>
         </header>
 

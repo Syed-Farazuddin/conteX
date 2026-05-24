@@ -4,13 +4,22 @@ import { uploadService } from "../services/upload.service.js";
 export class UploadController {
   async receive(req: Request, res: Response) {
     // TODO: wire multer / multipart parser
-    const { filename = "unknown", mimetype = "image/*", size = 0 } =
-      req.body ?? {};
+    const {
+      filename = "unknown",
+      mimetype = "image/*",
+      size = 0,
+      action,
+      position,
+      tilt,
+    } = req.body ?? {};
 
     const result = await uploadService.processUpload({
       filename,
       mimetype,
       size,
+      action,
+      position,
+      tilt,
     });
 
     res.json({
