@@ -13,7 +13,7 @@ export const DEFAULT_SUBJECT_POSITION: SubjectPosition = {
   top: 32,
   left: 12,
   right: 12,
-  bottom: 6,
+  bottom: 2,
   verticalAlign: "bottom",
   horizontalAlign: "center",
 };

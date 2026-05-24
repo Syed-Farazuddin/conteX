@@ -33,7 +33,7 @@ export const AI_ACTION_CATALOG = [
         top: "0-45 inset from top — larger for full-body (28-42)",
         left: "0-45 — increase on side with background clutter to shift subject away",
         right: "0-45 — increase on side with open space",
-        bottom: "3-10 for grounded subjects (feet on ground), 20-35 for waist-up",
+        bottom: "0-3 margin below feet when verticalAlign is bottom (0 = flush to frame bottom)",
         verticalAlign: "bottom for people/products with a base, center for logos",
         horizontalAlign: "left | center | right — place in clear negative space, never on statues/focal objects",
       },

@@ -328,3 +328,99 @@ body {
     8px -8px,
     -8px 0;
 }
+
+/* Landing page */
+@keyframes landing-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes landing-orb-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(20px, -16px) scale(1.05);
+  }
+}
+
+@keyframes landing-progress-pulse {
+  0% {
+    width: 12%;
+  }
+  50% {
+    width: 78%;
+  }
+  100% {
+    width: 12%;
+  }
+}
+
+.landing-fade-up {
+  animation: landing-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.landing-delay-1 {
+  animation-delay: 0.1s;
+}
+.landing-delay-2 {
+  animation-delay: 0.2s;
+}
+.landing-delay-3 {
+  animation-delay: 0.3s;
+}
+.landing-delay-4 {
+  animation-delay: 0.4s;
+}
+
+.landing-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(100px);
+  animation: landing-orb-float 14s ease-in-out infinite;
+}
+
+.landing-orb-a {
+  left: -8rem;
+  top: -4rem;
+  height: 28rem;
+  width: 28rem;
+  background: rgba(124, 58, 237, 0.35);
+}
+
+.landing-orb-b {
+  right: -8rem;
+  bottom: 10%;
+  height: 32rem;
+  width: 32rem;
+  background: rgba(217, 70, 239, 0.28);
+  animation-delay: -4s;
+}
+
+.landing-orb-c {
+  left: 40%;
+  top: 35%;
+  height: 20rem;
+  width: 20rem;
+  background: rgba(34, 211, 238, 0.15);
+  animation-delay: -7s;
+}
+
+.landing-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse at 50% 30%, black 20%, transparent 70%);
+}
+
+.landing-progress {
+  animation: landing-progress-pulse 2.8s ease-in-out infinite;
+}

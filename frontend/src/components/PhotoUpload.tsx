@@ -53,6 +53,11 @@ export default function PhotoUpload() {
     () => actionMap[DEFAULT_ACTION_KEY].defaultParams ?? {},
   );
   const [pipelinePlan, setPipelinePlan] = useState<PipelinePlan | null>(null);
+  const [pipelineMeta, setPipelineMeta] = useState<{
+    pipelineSource: "openai" | "mock";
+    planId: string;
+    generatedAt: string;
+  } | null>(null);
   const [pipelineProgress, setPipelineProgress] =
     useState<PipelineProgress | null>(null);
   const [pipelinePhase, setPipelinePhase] = useState<
@@ -121,11 +126,13 @@ export default function PhotoUpload() {
       try {
         if (actionKey === "ai-auto-edit") {
           setPipelinePlan(null);
+          setPipelineMeta(null);
           setPipelineProgress(null);
           setPipelinePhase("analyzing");
 
-          const plan = await planAiPipeline(source);
+          const { plan, meta } = await planAiPipeline(source);
           setPipelinePlan(plan);
+          setPipelineMeta(meta);
           setPipelinePhase("running");
 
           const { finalUrl } = await runPhotoActionPipeline(
@@ -195,6 +202,10 @@ export default function PhotoUpload() {
         revokeProcessed(prev);
         return null;
       });
+      setPipelinePlan(null);
+      setPipelineMeta(null);
+      setPipelineProgress(null);
+      setPipelinePhase(null);
 
       const url = URL.createObjectURL(file);
       previewRef.current = url;
@@ -241,6 +252,7 @@ export default function PhotoUpload() {
     setStatus("idle");
     setIsGenerating(false);
     setPipelinePlan(null);
+    setPipelineMeta(null);
     setPipelineProgress(null);
     setPipelinePhase(null);
     if (inputRef.current) inputRef.current.value = "";
@@ -322,6 +334,7 @@ export default function PhotoUpload() {
             plan={pipelinePlan}
             progress={pipelineProgress}
             phase={pipelinePhase ?? "analyzing"}
+            meta={pipelineMeta}
           />
         )}
         <p className="text-center text-xs text-white/40">
@@ -348,6 +361,7 @@ export default function PhotoUpload() {
             plan={pipelinePlan}
             progress={pipelineProgress}
             phase="done"
+            meta={pipelineMeta}
           />
         )}
 
@@ -437,9 +451,9 @@ export default function PhotoUpload() {
         }`}
       >
         <div className="flex min-h-[280px] flex-col items-center justify-center px-8 py-12 text-center">
-          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-br from-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/30">
+          <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-linear-to-br from-violet-500/80 to-fuchsia-500/80 shadow-lg shadow-violet-500/25">
             <svg
-              className="h-8 w-8 text-white"
+              className="h-7 w-7 text-white"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -448,7 +462,7 @@ export default function PhotoUpload() {
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2 8.798 2 10.5V18a2 2 0 002 2h16a2 2 0 002-2v-7.5c0-1.702-1-2.922-2.052-3.095-.377-.063-.754-.12-1.134-.175a2.31 2.31 0 01-1.64-1.055L15 5.186M12 13.5V6m0 0L9.75 8.25M12 6l2.25 2.25"
+                d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
               />
             </svg>
           </div>

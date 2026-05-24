@@ -13,8 +13,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ConteX — Photo Upload",
-  description: "Upload and share photos with a simple, beautiful interface",
+  title: "ConteX — AI Photo Studio",
+  description:
+    "Upload a photo and let ConteX AI enhance, reframe, and composite it automatically.",
+  icons: {
+    icon: "/subLogo.png",
+    apple: "/subLogo.png",
+  },
+  openGraph: {
+    title: "ConteX — AI Photo Studio",
+    description:
+      "Upload a photo and let ConteX AI enhance, reframe, and composite it automatically.",
+    images: [{ url: "/subLogo.png", alt: "ConteX" }],
+  },
 };
 
 export default function RootLayout({
@@ -25,7 +36,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full scroll-smooth antialiased`}
     >
       <body className="min-h-full font-sans">{children}</body>
     </html>

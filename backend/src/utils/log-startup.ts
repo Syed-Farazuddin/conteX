@@ -29,6 +29,10 @@ export function logStartupBanner() {
   console.log(
     `│  Backgrounds ${bgProviders.length ? bgProviders.join(", ") : "fallback catalog only (add API keys)"}`,
   );
+  const mockEnv = process.env.USE_MOCK_PIPELINE ?? "(unset)";
+  console.log(
+    `│  Pipeline   ${config.useMockPipeline ? "MOCK (USE_MOCK_PIPELINE=true)" : "OpenAI live ✓"}  [env=${mockEnv}]`,
+  );
   console.log("├─────────────────────────────────────────────────────────────");
   console.log("│  Endpoints");
   console.log("├─────────────────────────────────────────────────────────────");

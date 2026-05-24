@@ -1,3 +1,4 @@
+import { randomInt } from "node:crypto";
 import { pickFallbackByQuery } from "../constants/fallback-backgrounds.js";
 import { config } from "../config/index.js";
 
@@ -84,41 +85,80 @@ export class BackgroundSearchService {
       }
     }
 
-  // No-key online search using query keywords (better than unrelated static images)
-    const loremUrl = this.buildLoremFlickrUrl(baseQuery, orientation);
-    if (await this.verifyImageUrl(loremUrl)) {
-      return { url: loremUrl, source: "loremflickr" };
+    const loremCandidates = this.buildLoremFlickrCandidates(
+      baseQuery,
+      orientation,
+    );
+    for (const loremUrl of loremCandidates) {
+      const resolved = await this.resolveLoremFlickrUrl(loremUrl);
+      if (resolved) {
+        return { url: resolved, source: "loremflickr" };
+      }
     }
 
     return {
-      url: pickFallbackByQuery(baseQuery),
+      url: pickFallbackByQuery(baseQuery, { variety: true }),
       source: "fallback",
     };
   }
 
-  private buildLoremFlickrUrl(
+  /** Try full query, then broader tags — loremflickr often 404s to the same defaultImage. */
+  private buildLoremFlickrCandidates(
     query: string,
     orientation: BackgroundOrientation,
-  ): string {
-    const tags = query
+  ): string[] {
+    const words = query
       .toLowerCase()
       .split(/[^a-z0-9]+/)
-      .filter((t) => t.length > 2)
-      .slice(0, 4)
-      .join(",");
+      .filter((t) => t.length > 2);
     const [w, h] = dimensionsFor(orientation);
-    const keywordPath = tags || "abstract,gradient";
-    return `https://loremflickr.com/${w}/${h}/${keywordPath}`;
+    const paths: string[] = [];
+
+    if (words.length >= 2) {
+      paths.push(words.slice(0, 4).join(","));
+      paths.push(words.slice(0, 2).join(","));
+    }
+    if (words.length === 1) {
+      paths.push(words[0]);
+    }
+    paths.push("nature,landscape", "abstract,gradient");
+
+    const seen = new Set<string>();
+    return paths
+      .map((keywordPath) => `https://loremflickr.com/${w}/${h}/${keywordPath}`)
+      .filter((url) => {
+        if (seen.has(url)) return false;
+        seen.add(url);
+        return true;
+      });
   }
 
-  private async verifyImageUrl(url: string): Promise<boolean> {
+  /** Follow redirects once so each request can land on a different Flickr photo. */
+  private async resolveLoremFlickrUrl(
+    loremUrl: string,
+  ): Promise<string | null> {
     try {
-      const res = await fetch(url, { method: "HEAD", redirect: "follow" });
+      const res = await fetch(loremUrl, { redirect: "follow" });
+      if (!res.ok) return null;
+      if (this.isLoremFlickrPlaceholder(res.url)) return null;
+
       const type = res.headers.get("content-type") ?? "";
-      return res.ok && type.startsWith("image/");
+      if (!type.startsWith("image/")) return null;
+
+      return res.url;
     } catch {
-      return false;
+      return null;
     }
+  }
+
+  /** loremflickr serves this when no photo matches — always the same ugly tile. */
+  private isLoremFlickrPlaceholder(resolvedUrl: string): boolean {
+    return /defaultImage/i.test(resolvedUrl);
+  }
+
+  private pickRandom<T>(items: T[]): T | null {
+    if (items.length === 0) return null;
+    return items[randomInt(items.length)];
   }
 
   private async searchGoogle(query: string): Promise<string | null> {
@@ -144,9 +184,12 @@ export class BackgroundSearchService {
       items?: { link?: string }[];
     };
 
-    return (
-      data.items?.find((item) => item.link?.startsWith("http"))?.link ?? null
-    );
+    const links =
+      data.items
+        ?.map((item) => item.link)
+        .filter((link): link is string => Boolean(link?.startsWith("http"))) ??
+      [];
+    return this.pickRandom(links);
   }
 
   private async searchPexels(
@@ -175,7 +218,8 @@ export class BackgroundSearchService {
       }[];
     };
 
-    const photo = data.photos?.[0]?.src;
+    const photos = data.photos ?? [];
+    const photo = this.pickRandom(photos)?.src;
     return photo?.large2x ?? photo?.original ?? photo?.large ?? null;
   }
 
@@ -188,8 +232,7 @@ export class BackgroundSearchService {
     const params = new URLSearchParams({
       query,
       per_page: "8",
-      orientation:
-        orientation === "square" ? "squarish" : orientation,
+      orientation: orientation === "square" ? "squarish" : orientation,
     });
 
     const res = await fetch(
@@ -202,7 +245,8 @@ export class BackgroundSearchService {
       results?: { urls?: { full?: string; regular?: string } }[];
     };
 
-    const urls = data.results?.[0]?.urls;
+    const results = data.results ?? [];
+    const urls = this.pickRandom(results)?.urls;
     return urls?.full ?? urls?.regular ?? null;
   }
 }

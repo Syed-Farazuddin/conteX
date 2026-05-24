@@ -3,6 +3,7 @@ import {
   computeSubjectPlacement,
   configureHighQualityCanvas,
   drawImageCover,
+  getSubjectContentBounds,
   resolveCanvasSize,
 } from "./canvas-utils";
 import { clearBackground } from "./clear-background";
@@ -53,13 +54,15 @@ export const backgroundAdder: PhotoActionFn = async (sourceUrl, params) => {
     configureHighQualityCanvas(ctx);
     drawImageCover(ctx, background, width, height);
 
-    const { x, y, w, h } = computeSubjectPlacement(
+    const contentBounds = getSubjectContentBounds(subject);
+    const { x, y, w, h, sx, sy, sw, sh } = computeSubjectPlacement(
       width,
       height,
       subject,
       position,
+      contentBounds,
     );
-    ctx.drawImage(subject, x, y, w, h);
+    ctx.drawImage(subject, sx, sy, sw, sh, x, y, w, h);
 
     return await canvasToBlobUrl(canvas, "image/png");
   } finally {

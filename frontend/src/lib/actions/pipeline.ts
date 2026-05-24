@@ -18,9 +18,12 @@ function revokeIfBlob(url: string) {
 }
 
 /** Ask OpenAI (via backend) which actions to run on this image. */
-export async function planAiPipeline(imageUrl: string): Promise<PipelinePlan> {
+export async function planAiPipeline(imageUrl: string): Promise<{
+  plan: PipelinePlan;
+  meta: import("@/lib/api/pipeline").PipelinePlanMeta;
+}> {
   const base64 = await blobUrlToBase64(imageUrl);
-  const plan = await fetchPipelinePlan(base64);
+  const { plan, meta } = await fetchPipelinePlan(base64);
 
   const actions = plan.actions
     .filter((step): step is PipelineStep => isPipelineActionKey(step.action))
@@ -29,11 +32,12 @@ export async function planAiPipeline(imageUrl: string): Promise<PipelinePlan> {
         step.action !== "tilt-subject" ||
         !plan.actions.some((s) => s.action === "add-background"),
     );
+
   if (actions.length === 0) {
     throw new Error("AI returned no valid actions");
   }
 
-  return { ...plan, actions };
+  return { plan: { ...plan, actions }, meta };
 }
 
 /** Run each action in order; output of step N feeds step N+1. */

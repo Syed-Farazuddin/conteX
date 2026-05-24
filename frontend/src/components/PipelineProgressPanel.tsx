@@ -1,18 +1,21 @@
 "use client";
 
 import { actionMap } from "@/lib/actions";
+import type { PipelinePlanMeta } from "@/lib/api/pipeline";
 import type { PipelinePlan, PipelineProgress } from "@/lib/api/pipeline-types";
 
 type PipelineProgressPanelProps = {
   plan: PipelinePlan | null;
   progress: PipelineProgress | null;
   phase: "analyzing" | "running" | "done";
+  meta?: PipelinePlanMeta | null;
 };
 
 export default function PipelineProgressPanel({
   plan,
   progress,
   phase,
+  meta,
 }: PipelineProgressPanelProps) {
   if (!plan && phase === "analyzing") {
     return (
@@ -33,6 +36,19 @@ export default function PipelineProgressPanel({
     <div className="w-full rounded-2xl border border-white/10 bg-white/5 p-4">
       <p className="mb-3 text-xs font-medium uppercase tracking-wider text-white/40">
         AI edit pipeline
+        {meta && (
+          <span
+            className={`ml-2 normal-case tracking-normal ${
+              meta.pipelineSource === "mock"
+                ? "text-amber-400"
+                : "text-emerald-400/80"
+            }`}
+          >
+            · {meta.pipelineSource === "mock" ? "mock plan" : "OpenAI live"} ·
+            id {meta.planId.slice(0, 8)} ·{" "}
+            {new Date(meta.generatedAt).toLocaleTimeString()}
+          </span>
+        )}
       </p>
       <p className="mb-4 text-sm text-cyan-200/80">{plan.summary}</p>
       <ol className="space-y-2">

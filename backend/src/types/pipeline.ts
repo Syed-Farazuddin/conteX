@@ -34,3 +34,11 @@ export type PipelinePlan = {
   summary: string;
   actions: PipelineStep[];
 };
+
+export type PipelinePlanSource = "openai" | "mock";
+
+export type PipelinePlanResult = {
+  plan: PipelinePlan;
+  source: PipelinePlanSource;
+  planId: string;
+};

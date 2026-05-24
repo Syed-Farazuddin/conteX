@@ -1,11 +1,19 @@
+import { randomUUID } from "node:crypto";
 import { AI_ACTION_CATALOG } from "../constants/action-catalog.js";
 import { isActionKey } from "../actions/index.js";
+import { config } from "../config/index.js";
 import { aiService } from "./ai.service.js";
 import { backgroundSearchService } from "./background-search.service.js";
-import type { PipelinePlan, PipelineStep } from "../types/pipeline.js";
+import type {
+  PipelinePlan,
+  PipelinePlanResult,
+  PipelineStep,
+} from "../types/pipeline.js";
 
-/** Set to false when you want live OpenAI pipeline planning again. */
-const USE_MOCK_PIPELINE = true;
+/** Set USE_MOCK_PIPELINE=true in backend/.env to skip OpenAI (dev only). */
+function isMockPipelineEnabled() {
+  return config.useMockPipeline;
+}
 
 const MOCK_PIPELINE_PLAN: PipelinePlan = {
   summary:
@@ -30,7 +38,7 @@ const MOCK_PIPELINE_PLAN: PipelinePlan = {
           top: 30,
           left: 15,
           right: 15,
-          bottom: 5,
+          bottom: 2,
           verticalAlign: "bottom",
           horizontalAlign: "center",
         },
@@ -38,8 +46,8 @@ const MOCK_PIPELINE_PLAN: PipelinePlan = {
         backgroundSearchQuery: "outdoor evening open space serene",
         backgroundOrientation: "portrait",
         backgroundUrl:
-          "https://loremflickr.com/1350/2400/outdoor,evening,open,space",
-        backgroundSource: "loremflickr",
+          "https://images.unsplash.com/photo-1501785888041-af93ef12fa88?fm=jpg&q=90&w=2400&auto=format&fit=crop",
+        backgroundSource: "fallback",
       },
     },
     {
@@ -72,10 +80,11 @@ ADJUST-ENHANCE (REQUIRED params when used):
 - Logos on dark backgrounds: moderate brightness 1.05-1.12, contrast 1.1-1.2, saturation 1.0-1.08.
 
 ADD-BACKGROUND POSITIONING (REQUIRED when using add-background):
-Position uses % insets from each edge defining a box; the subject is drawn inside this box.
-- ALWAYS include position with verticalAlign and horizontalAlign.
-- FULL-BODY people: verticalAlign "bottom", bottom 4-8, top 30-42, shift left/right toward open space (10-25).
-- WAIST-UP / headshot: verticalAlign "bottom", top 8-15, bottom 22-32.
+- top / left / right: % insets from frame edges (max height band and horizontal placement).
+- bottom (with verticalAlign "bottom"): tiny margin below the subject's feet — 0 = flush to frame bottom, 2-4 = small breathing room. NOT a large value.
+- ALWAYS include verticalAlign and horizontalAlign.
+- FULL-BODY people: verticalAlign "bottom", bottom 0-3, top 28-42, left/right 10-25 toward open space.
+- WAIST-UP / headshot: verticalAlign "bottom", bottom 0-2, top 18-30 (higher top = smaller subject, more headroom).
 - LOGOS / flat graphics: verticalAlign "center", horizontalAlign "center", symmetric insets 12-20.
 - NEVER use equal insets on all sides for standing people — that causes floating mid-frame.
 - Pick backgroundSearchQuery scenes with open foreground / negative space, not busy center objects.
@@ -113,10 +122,10 @@ Return ONLY valid JSON:
 }
 
 CRITICAL RULES:
-1. GROUNDING: People and products must use verticalAlign "bottom" with bottom inset 3-10 so feet/base sit on the ground/surface in the background — never floating mid-air.
+1. GROUNDING: verticalAlign "bottom" with bottom 0-3 so feet/base sit on the frame bottom — never floating. Large bottom values create a visible gap.
 2. AVOID OBSTRUCTIONS: Do NOT place the subject on statues, sculptures, furniture, signs, or central focal objects. Shift horizontalAlign left or right toward empty pavement, grass, or sky.
-3. FULL-BODY: top 28-42, bottom 4-8, left/right 10-28 — tighter on the side with clutter, wider on the open side.
-4. WAIST-UP: top 6-14, bottom 24-34, verticalAlign bottom.
+3. FULL-BODY: top 28-42, bottom 0-3, left/right 10-28 — tighter on the cluttered side, wider on open space.
+4. WAIST-UP: top 18-30, bottom 0-2, verticalAlign bottom.
 5. SCALE: Smaller left+right insets = larger subject. Subject should feel naturally sized for the scene.
 6. HORIZON: Align the subject's base with visible ground plane, sidewalk, or floor in the background.`;
 
@@ -124,7 +133,7 @@ const DEFAULT_PORTRAIT_POSITION = {
   top: 32,
   left: 12,
   right: 12,
-  bottom: 6,
+  bottom: 2,
   verticalAlign: "bottom" as const,
   horizontalAlign: "center" as const,
 };
@@ -396,13 +405,21 @@ async function refineBackgroundPlacement(
 }
 
 export class PipelineService {
-  async planFromImageBase64(_imageBase64: string): Promise<PipelinePlan> {
-    if (USE_MOCK_PIPELINE) {
-      return {
-        ...MOCK_PIPELINE_PLAN,
-        actions: normalizePipelineActions(MOCK_PIPELINE_PLAN.actions),
-      };
-    }
+  async planFromImageBase64(_imageBase64: string): Promise<PipelinePlanResult> {
+    // if (isMockPipelineEnabled()) {
+    //   console.log("[pipeline] returning mock plan (USE_MOCK_PIPELINE=true)");
+    //   return {
+    //     source: "mock",
+    //     planId: "mock-static",
+    //     plan: {
+    //       ...MOCK_PIPELINE_PLAN,
+    //       actions: normalizePipelineActions(MOCK_PIPELINE_PLAN.actions),
+    //     },
+    //   };
+    // }
+
+    const planId = randomUUID();
+    console.log(`[pipeline] planning via OpenAI vision… planId=${planId}`);
 
     if (!aiService.isConfigured()) {
       throw new Error("OPEN_AI_API_KEY is not configured");
@@ -441,12 +458,14 @@ export class PipelineService {
     if (actions.length === 0) {
       const fallback = fallbackPlan();
       const withBackgrounds = await enrichBackgroundSteps(fallback.actions);
-      return {
+      const plan = {
         ...fallback,
         actions: normalizePipelineActions(
           await refineBackgroundPlacement(dataUrl, withBackgrounds),
         ),
       };
+      console.log(`[pipeline] OpenAI plan complete planId=${planId}`);
+      return { source: "openai", planId, plan };
     }
 
     const withBackgrounds = await enrichBackgroundSteps(actions);
@@ -454,10 +473,12 @@ export class PipelineService {
       dataUrl,
       withBackgrounds,
     );
-    return {
+    const plan = {
       summary,
       actions: normalizePipelineActions(placedActions),
     };
+    console.log(`[pipeline] OpenAI plan complete planId=${planId}`);
+    return { source: "openai", planId, plan };
   }
 }
 

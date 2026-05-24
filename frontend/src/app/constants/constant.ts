@@ -1,7 +1,12 @@
 export const images = [
-  "https://plus.unsplash.com/premium_photo-1681426327290-1ec5fb4d3dd8?fm=jpg&q=90&w=2400&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8Y29vbCUyMGJhY2tncm91bmR8ZW58MHx8MHx8fDA%3D",
-  // Use full-size URLs only — small thumbnails destroy composite quality
+  "https://images.unsplash.com/photo-1557682250-33bdbd6b5726?fm=jpg&q=90&w=2400&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1579546929662-711aa8117cf5?fm=jpg&q=90&w=2400&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1519681393784-d120267933ba?fm=jpg&q=90&w=2400&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?fm=jpg&q=90&w=2400&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?fm=jpg&q=90&w=2400&auto=format&fit=crop",
+  "https://plus.unsplash.com/premium_photo-1681426327290-1ec5fb4d3dd8?fm=jpg&q=90&w=2400&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1501785888041-af93ef12fa88?fm=jpg&q=90&w=2400&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1497366216548-37526070297c?fm=jpg&q=90&w=2400&auto=format&fit=crop",
 ];
 
 /** Request higher JPEG quality / width from Unsplash-style URLs. */

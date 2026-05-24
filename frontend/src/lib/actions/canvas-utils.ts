@@ -73,43 +73,135 @@ export type SubjectPosition = {
   horizontalAlign?: "left" | "center" | "right";
 };
 
-/** Place subject inside a box defined by % insets from each edge. */
+export type SubjectContentBounds = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type SubjectPlacement = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Source crop when transparent padding was trimmed from the cutout. */
+  sx: number;
+  sy: number;
+  sw: number;
+  sh: number;
+};
+
+/** Tight bounds around non-transparent pixels (background-removal cutouts often have empty padding). */
+export function getSubjectContentBounds(
+  image: HTMLImageElement,
+  alphaThreshold = 12,
+): SubjectContentBounds | null {
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+
+  ctx.drawImage(image, 0, 0);
+  const { data, width, height } = ctx.getImageData(
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
+
+  let minX = width;
+  let minY = height;
+  let maxX = 0;
+  let maxY = 0;
+  let found = false;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const alpha = data[(y * width + x) * 4 + 3];
+      if (alpha > alphaThreshold) {
+        found = true;
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (!found) return null;
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX + 1,
+    height: maxY - minY + 1,
+  };
+}
+
+/**
+ * Place subject on canvas.
+ * - top / left / right: % insets defining the horizontal band and max height.
+ * - bottom + verticalAlign "bottom": margin below the visible subject (0 = flush to frame bottom).
+ * - verticalAlign "top" | "center": bottom is also an inset from the frame bottom (placement box).
+ */
 export function computeSubjectPlacement(
   canvasW: number,
   canvasH: number,
   subject: HTMLImageElement,
   position: SubjectPosition,
-) {
-  const top = (position.top / 100) * canvasH;
-  const left = (position.left / 100) * canvasW;
-  const right = (position.right / 100) * canvasW;
-  const bottom = (position.bottom / 100) * canvasH;
+  contentBounds?: SubjectContentBounds | null,
+): SubjectPlacement {
+  const marginTop = (position.top / 100) * canvasH;
+  const marginLeft = (position.left / 100) * canvasW;
+  const marginRight = (position.right / 100) * canvasW;
+  const marginBottom = (position.bottom / 100) * canvasH;
 
-  const boxW = Math.max(1, canvasW - left - right);
-  const boxH = Math.max(1, canvasH - top - bottom);
+  const boxW = Math.max(1, canvasW - marginLeft - marginRight);
 
-  const scale = Math.min(
-    boxW / subject.naturalWidth,
-    boxH / subject.naturalHeight,
-    1.8,
-  );
-  const w = subject.naturalWidth * scale;
-  const h = subject.naturalHeight * scale;
+  const sx = contentBounds?.x ?? 0;
+  const sy = contentBounds?.y ?? 0;
+  const subW = contentBounds?.width ?? subject.naturalWidth;
+  const subH = contentBounds?.height ?? subject.naturalHeight;
 
   const vAlign = position.verticalAlign ?? "bottom";
   const hAlign = position.horizontalAlign ?? "center";
 
+  const maxH =
+    vAlign === "bottom"
+      ? Math.max(1, canvasH - marginTop - marginBottom)
+      : Math.max(1, canvasH - marginTop - marginBottom);
+
+  const scale = Math.min(boxW / subW, maxH / subH, 1.8);
+  const w = subW * scale;
+  const h = subH * scale;
+
   let x: number;
-  if (hAlign === "left") x = left;
-  else if (hAlign === "right") x = left + boxW - w;
-  else x = left + (boxW - w) / 2;
+  if (hAlign === "left") x = marginLeft;
+  else if (hAlign === "right") x = marginLeft + boxW - w;
+  else x = marginLeft + (boxW - w) / 2;
 
   let y: number;
-  if (vAlign === "top") y = top;
-  else if (vAlign === "bottom") y = top + boxH - h;
-  else y = top + (boxH - h) / 2;
+  if (vAlign === "top") {
+    y = marginTop;
+  } else if (vAlign === "bottom") {
+    // Feet sit on the frame bottom; `bottom` is only a small margin below visible pixels.
+    y = canvasH - h - marginBottom;
+  } else {
+    y = marginTop + (maxH - h) / 2;
+  }
 
-  return { x, y, w, h };
+  return {
+    x,
+    y,
+    w,
+    h,
+    sx,
+    sy,
+    sw: subW,
+    sh: subH,
+  };
 }
 
 export function aspectRatioValue(key: string): number {

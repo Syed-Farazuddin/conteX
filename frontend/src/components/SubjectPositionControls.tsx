@@ -57,8 +57,8 @@ export default function SubjectPositionControls({
         ))}
       </div>
       <p className="mt-2 text-center text-[11px] text-white/35">
-        Insets define the placement box — subject anchors to the bottom by
-        default
+        Top/left/right limit size and width. Bottom = margin below feet (0 =
+        flush to frame bottom).
       </p>
     </div>
   );

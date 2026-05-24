@@ -56,28 +56,50 @@ function tokenize(text: string): string[] {
     .filter((t) => t.length > 2);
 }
 
-/** Pick the fallback whose tags best match the search query (never random). */
-export function pickFallbackByQuery(query: string): string {
-  const tokens = tokenize(query);
-  if (tokens.length === 0) return DEFAULT_FALLBACK;
-
-  let bestScore = -1;
-  let bestUrl = DEFAULT_FALLBACK;
-
-  for (const bg of FALLBACK_BACKGROUNDS) {
-    let score = 0;
-    for (const token of tokens) {
-      for (const tag of bg.tags) {
-        if (tag === token || tag.includes(token) || token.includes(tag)) {
-          score += tag === token ? 2 : 1;
-        }
+function scoreBackground(bg: FallbackBackground, tokens: string[]): number {
+  let score = 0;
+  for (const token of tokens) {
+    for (const tag of bg.tags) {
+      if (tag === token || tag.includes(token) || token.includes(tag)) {
+        score += tag === token ? 2 : 1;
       }
     }
-    if (score > bestScore) {
-      bestScore = score;
-      bestUrl = bg.url;
-    }
+  }
+  return score;
+}
+
+/** Pick a curated background; `variety` randomizes among the best tag matches. */
+export function pickFallbackByQuery(
+  query: string,
+  options?: { variety?: boolean },
+): string {
+  const tokens = tokenize(query);
+  if (tokens.length === 0) {
+    if (!options?.variety) return DEFAULT_FALLBACK;
+    const pick =
+      FALLBACK_BACKGROUNDS[
+        Math.floor(Math.random() * FALLBACK_BACKGROUNDS.length)
+      ];
+    return pick.url;
   }
 
-  return bestUrl;
+  const ranked = FALLBACK_BACKGROUNDS.map((bg) => ({
+    bg,
+    score: scoreBackground(bg, tokens),
+  })).sort((a, b) => b.score - a.score);
+
+  const withMatches = ranked.filter((r) => r.score > 0);
+  const pool = withMatches.length > 0 ? withMatches : ranked;
+
+  if (!options?.variety) {
+    return pool[0].bg.url;
+  }
+
+  const topScore = pool[0].score;
+  const tier =
+    topScore > 0
+      ? pool.filter((r) => r.score >= Math.max(1, topScore - 1))
+      : pool;
+  const pick = tier[Math.floor(Math.random() * tier.length)];
+  return pick.bg.url;
 }

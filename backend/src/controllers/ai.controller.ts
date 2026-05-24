@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { config } from "../config/index.js";
 import { aiService } from "../services/ai.service.js";
 import { backgroundSearchService } from "../services/background-search.service.js";
 import { pipelineService } from "../services/pipeline.service.js";
@@ -7,6 +8,9 @@ export class AiController {
   status(_req: Request, res: Response) {
     res.json({
       configured: aiService.isConfigured(),
+      pipeline: {
+        mode: config.useMockPipeline ? "mock" : "openai",
+      },
       backgroundSearch: {
         configured: backgroundSearchService.isConfigured(),
         providers: backgroundSearchService.getConfiguredProviders(),
@@ -58,8 +62,16 @@ export class AiController {
         });
       }
 
-      const plan = await pipelineService.planFromImageBase64(imageBase64);
-      res.json({ success: true, data: plan });
+      const result = await pipelineService.planFromImageBase64(imageBase64);
+      res.json({
+        success: true,
+        data: result.plan,
+        meta: {
+          pipelineSource: result.source,
+          planId: result.planId,
+          generatedAt: new Date().toISOString(),
+        },
+      });
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Pipeline planning failed";
