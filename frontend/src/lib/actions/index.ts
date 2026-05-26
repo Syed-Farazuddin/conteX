@@ -24,6 +24,7 @@ export type {
 
 export { DEFAULT_SUBJECT_POSITION, DEFAULT_SUBJECT_TILT } from "./types";
 
+/** @deprecated Legacy tools — use GenerationStudio when ENABLE_LEGACY_TOOLS is false */
 export const DEFAULT_ACTION_KEY: ActionKey = "ai-auto-edit";
 
 export const actionMap: Record<ActionKey, PhotoAction> = {
@@ -144,6 +145,17 @@ export const actionMap: Record<ActionKey, PhotoAction> = {
     category: "ai",
     run: async () => {
       throw new Error("AI Auto Edit uses the pipeline runner");
+    },
+  },
+  "clothing-cinematic": {
+    key: "clothing-cinematic",
+    label: "Clothing shot",
+    description:
+      "Send your photo with an AI prompt to generate an on-model cinematic shot",
+    scanningLabel: "CLOTHING CINEMATIC",
+    category: "ai",
+    run: async () => {
+      throw new Error("Clothing shot uses the backend Replicate service");
     },
   },
 };

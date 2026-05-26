@@ -1,39 +1,39 @@
 import Image from "next/image";
-import PhotoUpload from "@/components/PhotoUpload";
+import Studio from "@/components/Studio";
 
 const FEATURES = [
   {
-    title: "AI Auto Edit",
+    title: "Natural & realistic",
     description:
-      "Upload once — our AI analyzes your photo and builds a custom edit pipeline tailored to your subject.",
-    icon: "✦",
+      "Clean photorealistic output that keeps your subject while improving light and color.",
+    icon: "📷",
     accent: "from-violet-500/20 to-fuchsia-500/10",
     ring: "ring-violet-400/30",
     delay: "landing-delay-1",
   },
   {
-    title: "Smart backgrounds",
+    title: "Ghibli & anime",
     description:
-      "Remove messy backgrounds and place your subject on a scene that matches the mood — with intelligent positioning.",
-    icon: "◈",
+      "Turn portraits into soft Ghibli film stills or bold modern anime illustrations.",
+    icon: "🌿",
     accent: "from-cyan-500/15 to-violet-500/10",
     ring: "ring-cyan-400/25",
     delay: "landing-delay-2",
   },
   {
-    title: "Social-ready export",
+    title: "Cinematic & fantasy",
     description:
-      "Auto crop to 9:16, 16:9, or HD sizes so your content is ready for Reels, TikTok, YouTube, and posts.",
-    icon: "▣",
+      "Film-grade mood, beauty portraits, vintage film, and magical fantasy looks.",
+    icon: "🎬",
     accent: "from-fuchsia-500/15 to-pink-500/10",
     ring: "ring-fuchsia-400/25",
     delay: "landing-delay-3",
   },
   {
-    title: "Manual fine-tune",
+    title: "Web + mobile",
     description:
-      "Prefer hands-on control? Expand manual tools for background removal, enhance, crop, resize, and more.",
-    icon: "◎",
+      "Same generation styles on the website and the ConteX mobile app — one API.",
+    icon: "📱",
     accent: "from-indigo-500/15 to-violet-500/10",
     ring: "ring-indigo-400/25",
     delay: "landing-delay-4",
@@ -43,18 +43,18 @@ const FEATURES = [
 const STEPS = [
   {
     step: "01",
-    title: "Upload your photo",
-    body: "Drop a portrait, product shot, or any image you want to polish.",
+    title: "Pick a style",
+    body: "Natural, Ghibli, anime, cinematic, portrait, fantasy, vintage, or fashion model.",
   },
   {
     step: "02",
-    title: "AI plans your edits",
-    body: "ConteX decides the best sequence — enhance, background, crop — and shows you the plan live.",
+    title: "Upload your photo",
+    body: "We send your image and style prompt to AI — no manual editing required.",
   },
   {
     step: "03",
-    title: "Compare & download",
-    body: "See original vs processed side-by-side. Re-run with manual tools anytime.",
+    title: "Compare & save",
+    body: "See before and after, open the full image, or generate again with another style.",
   },
 ] as const;
 
@@ -114,7 +114,7 @@ export default function LandingPage() {
           <div className="landing-fade-up">
             <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-violet-500/10 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-violet-200/90">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-violet-400" />
-              AI photo studio
+              AI photo generator
             </p>
             <h1 className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl">
               Your photos,{" "}
@@ -123,9 +123,9 @@ export default function LandingPage() {
               </span>
             </h1>
             <p className="mt-6 max-w-lg text-lg leading-relaxed text-white/55">
-              ConteX analyzes your image and runs a custom edit pipeline —
-              enhance colors, swap backgrounds, and frame for social — all
-              automatically. No design skills required.
+              Pick a look — Ghibli, anime, cinematic, natural, and more. Upload
+              a photo and get a new image in seconds. Same experience on web and
+              mobile.
             </p>
             <div className="mt-10 flex flex-wrap items-center gap-4">
               <a
@@ -143,14 +143,14 @@ export default function LandingPage() {
             </div>
             <ul className="mt-10 flex flex-wrap gap-x-6 gap-y-2 text-sm text-white/40">
               <li className="flex items-center gap-2">
-                <span className="text-emerald-400">✓</span> Instant AI pipeline
+                <span className="text-emerald-400">✓</span> 8+ style presets
               </li>
               <li className="flex items-center gap-2">
                 <span className="text-emerald-400">✓</span> Before / after
                 preview
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-emerald-400">✓</span> Runs in your browser
+                <span className="text-emerald-400">✓</span> iOS & Android app
               </li>
             </ul>
           </div>
@@ -169,18 +169,18 @@ export default function LandingPage() {
                 />
                 <div className="mt-6 space-y-3 rounded-2xl border border-white/8 bg-black/30 p-4 font-mono text-xs">
                   <div className="flex items-center justify-between text-white/40">
-                    <span>AI pipeline</span>
-                    <span className="text-emerald-400/80">running</span>
+                    <span>Style</span>
+                    <span className="text-emerald-400/80">ghibli</span>
                   </div>
                   <div className="space-y-2 text-white/60">
                     <p>
-                      <span className="text-violet-300">→</span> adjust-enhance
+                      <span className="text-violet-300">→</span> upload photo
                     </p>
                     <p>
-                      <span className="text-violet-300">→</span> add-background
+                      <span className="text-violet-300">→</span> send prompt
                     </p>
                     <p>
-                      <span className="text-violet-300">→</span> crop-9-16
+                      <span className="text-violet-300">→</span> download result
                     </p>
                   </div>
                   <div className="h-1 overflow-hidden rounded-full bg-white/10">
@@ -202,8 +202,8 @@ export default function LandingPage() {
             One upload. A full edit suite.
           </h2>
           <p className="mt-4 text-white/50">
-            Built for creators, sellers, and anyone who wants
-            professional-looking photos without opening Photoshop.
+            Built for creators who want stylized photos without learning complex
+            editing tools.
           </p>
         </div>
         <div className="grid gap-5 sm:grid-cols-2">
@@ -265,12 +265,12 @@ export default function LandingPage() {
             Try it now
           </h2>
           <p className="mx-auto mt-3 max-w-md text-white/50">
-            Upload a photo below. AI Auto Edit is selected by default — sit back
-            and watch the pipeline run.
+            Upload a photo, pick a style, and generate. Works the same in the
+            mobile app.
           </p>
         </div>
         <div className="mx-auto flex justify-center">
-          <PhotoUpload />
+          <Studio />
         </div>
       </section>
 
@@ -284,7 +284,7 @@ export default function LandingPage() {
             className="h-7 w-auto opacity-80"
           />
           <p className="text-sm text-white/35">
-            AI-powered photo editing — enhance, composite, export.
+            AI photo generation — web & mobile.
           </p>
         </div>
       </footer>

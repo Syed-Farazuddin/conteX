@@ -2,6 +2,9 @@ import { API_ROUTES } from "../constants/routes.js";
 import { actionList } from "../actions/index.js";
 import { config } from "../config/index.js";
 import { backgroundSearchService } from "../services/background-search.service.js";
+import { clothingService } from "../services/clothing.service.js";
+import { generationService } from "../services/generation.service.js";
+import { replicateService } from "../services/replicate.service.js";
 
 const METHOD_WIDTH = 6;
 
@@ -18,7 +21,7 @@ export function logStartupBanner() {
   console.log("│  ConteX Backend");
   console.log("├─────────────────────────────────────────────────────────────");
   console.log(`│  Server     ${base}`);
-  console.log(`│  CORS       ${config.corsOrigin}`);
+  console.log(`│  CORS       ${config.corsOrigins.join(", ")}`);
   console.log(
     `│  OpenAI     ${aiReady ? "configured ✓" : "missing OPEN_AI_API_KEY ✗"}`,
   );
@@ -32,6 +35,15 @@ export function logStartupBanner() {
   const mockEnv = process.env.USE_MOCK_PIPELINE ?? "(unset)";
   console.log(
     `│  Pipeline   ${config.useMockPipeline ? "MOCK (USE_MOCK_PIPELINE=true)" : "OpenAI live ✓"}  [env=${mockEnv}]`,
+  );
+  console.log(
+    `│  Replicate  ${replicateService.isConfigured() ? "configured ✓" : "missing REPLICATE_API_TOKEN ✗"}`,
+  );
+  console.log(
+    `│  Clothing   ${clothingService.isConfigured() ? "cinematic pipeline ✓" : "needs REPLICATE_API_TOKEN ✗"}`,
+  );
+  console.log(
+    `│  Generate   ${generationService.isConfigured() ? "style presets ✓" : "needs REPLICATE_API_TOKEN ✗"}`,
   );
   console.log("├─────────────────────────────────────────────────────────────");
   console.log("│  Endpoints");

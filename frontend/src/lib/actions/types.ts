@@ -72,7 +72,8 @@ export type ActionKey =
   | "rotate-90"
   | "flip-horizontal"
   | "tilt-subject"
-  | "ai-auto-edit";
+  | "ai-auto-edit"
+  | "clothing-cinematic";
 
 export type PhotoAction = {
   key: ActionKey;

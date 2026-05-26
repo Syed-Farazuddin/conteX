@@ -4,13 +4,18 @@
   "private": true,
   "scripts": {
     "dev": "concurrently -n backend,frontend -c blue,magenta \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "dev:all": "concurrently -n backend,frontend,mobile -c blue,magenta,green \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\" \"cd mobile && flutter run\"",
     "dev:backend": "npm run dev --prefix backend",
     "dev:frontend": "npm run dev --prefix frontend",
+    "dev:mobile": "cd mobile && flutter run",
     "build": "npm run build --prefix backend && npm run build --prefix frontend",
     "build:backend": "npm run build --prefix backend",
     "build:frontend": "npm run build --prefix frontend"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
+  },
+  "dependencies": {
+    "replicate": "^1.4.0"
   }
 }

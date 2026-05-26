@@ -1,68 +1,73 @@
 # ConteX
 
-Monorepo with a Next.js + Tailwind frontend and an Express backend scaffold.
+AI photo generation for **web** and **mobile** — pick a style (Natural, Ghibli, Anime, Cinematic, and more), upload a photo, and generate via Replicate.
 
-## Frontend
+Monorepo: Next.js frontend, Express API, Flutter mobile app.
 
-```bash
-cd frontend
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000).
-
-## Backend (structure only)
-
-```bash
-cd backend
-npm install
-npm run dev
-```
-
-## Run both (from repo root)
-
-**Terminal:**
+## Quick start
 
 ```bash
 npm install
-npm run dev
+cd backend && cp .env.example .env   # add REPLICATE_API_TOKEN, OPEN_AI_API_KEY
+cd ../frontend && npm install
+cd ../mobile && flutter pub get
 ```
 
-**Cursor / VS Code:** `Terminal` → `Run Task…`
+From repo root:
 
-| Task            | What it does                                          |
-| --------------- | ----------------------------------------------------- |
-| `dev: all`      | Backend + frontend (default build task)               |
-| `backend: dev`  | API on [http://localhost:4000](http://localhost:4000) |
-| `frontend: dev` | App on [http://localhost:3000](http://localhost:3000) |
+```bash
+npm run dev          # backend + web
+npm run dev:mobile   # Flutter (separate terminal, or use dev:all)
+```
 
-Shortcut: `Cmd+Shift+B` (Mac) or `Ctrl+Shift+B` (Windows/Linux) runs **`dev: all`**.
+| URL                                            | App                           |
+| ---------------------------------------------- | ----------------------------- |
+| [http://localhost:3000](http://localhost:3000) | Web studio                    |
+| [http://localhost:4000](http://localhost:4000) | API                           |
+| `flutter run`                                  | Mobile (`npm run dev:mobile`) |
 
-- `GET /health` — health check
-- `POST /api/upload` — stub upload endpoint (returns `{ message: "Photo received" }`)
-- `GET /api/ai/status` — check if `OPEN_AI_API_KEY` is configured
-- `POST /api/ai/plan-pipeline` — vision AI returns ordered `{ summary, actions[] }` for the image
-- `POST /api/ai/chat` — OpenAI chat (`{ "prompt": "..." }` or `{ "messages": [...] }`)
+## Photo generation API
 
-Copy `backend/.env.example` to `backend/.env` and set `OPEN_AI_API_KEY`.
+| Method | Path                   | Description                                             |
+| ------ | ---------------------- | ------------------------------------------------------- |
+| `GET`  | `/api/generate/styles` | List styles (`natural`, `ghibli`, `anime`, …)           |
+| `POST` | `/api/generate`        | Body: `{ styleId, imageBase64, prompt?, aspectRatio? }` |
 
-Wire the frontend to `POST /api/upload` when you are ready to persist uploads.
+Styles are defined in `backend/src/constants/generation-styles.ts`.
 
-### Photo actions
+## Mobile app
 
-Actions are registered in a map (`key` → handler). Each action defines what runs on process.
+```bash
+cd mobile
+flutter pub get
+# Physical device:
+flutter run --dart-define=API_BASE_URL=http://YOUR_LAN_IP:4000
+```
 
-| Layer    | Location                                                      |
-| -------- | ------------------------------------------------------------- |
-| Frontend | `frontend/src/lib/actions/` — `runPhotoAction(key, imageUrl)` |
-| Backend  | `backend/src/actions/` — `runAction(key, payload)` (stubs)    |
+Add your LAN IP to `CORS_ORIGIN` in `backend/.env` (comma-separated with `http://localhost:3000`).
 
-**`clear-background`** — removes the background in the browser via `@imgly/background-removal` (first run downloads ML models).
+## Legacy browser tools (disabled)
 
-**`add-background`** — runs `backgroundAdder`: clear background, random scene from `constant.ts`, place subject using `position: { top, left, right, bottom }` (% insets).
+Crop, clear background, AI auto-edit pipeline, and manual tools remain in `frontend/src/lib/actions/` but are **hidden** by default.
 
-**Video / frame actions:** `crop-16-9`, `crop-9-16`, `crop-1-1`, `resize-1080p`, `resize-vertical`, `adjust-enhance`, `rotate-90`, `flip-horizontal`.
+To re-enable the old studio UI:
 
-Each action supports `defaultParams` in the map; overrides are merged at runtime via `runPhotoAction(key, url, params)`.
+```ts
+// frontend/src/lib/config/features.ts
+export const ENABLE_LEGACY_TOOLS = true;
+```
 
-To add a new action: create `your-action.ts`, register in `actions/index.ts`, extend `ActionKey`, and add a backend stub in `backend/src/actions/`.
+## Environment
+
+See `backend/.env.example` for Replicate model pins, CORS, and OpenAI keys.
+
+- `REPLICATE_GENERATION_MODEL` — flux-kontext-pro (image + prompt)
+- `REPLICATE_CLOTHING_MODEL` — fashion model style preset
+
+## Project layout
+
+```
+backend/     Express API, generation + clothing services
+frontend/    Next.js web app
+mobile/      Flutter (iOS / Android)
+```

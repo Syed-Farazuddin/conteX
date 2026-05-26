@@ -12,7 +12,8 @@
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^5.1.0",
-    "openai": "^6.39.0"
+    "openai": "^6.39.0",
+    "replicate": "^1.4.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

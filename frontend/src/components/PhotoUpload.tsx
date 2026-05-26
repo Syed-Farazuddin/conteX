@@ -8,6 +8,9 @@ import {
   useState,
 } from "react";
 import ActionSelector from "./ActionSelector";
+import ClothingProgressPanel, {
+  type ClothingPhase,
+} from "./ClothingProgressPanel";
 import PhotoComparison from "./PhotoComparison";
 import PhotoScanOverlay from "./PhotoScanOverlay";
 import PipelineProgressPanel from "./PipelineProgressPanel";
@@ -28,6 +31,10 @@ import {
   type SubjectPosition,
   type SubjectTilt,
 } from "@/lib/actions";
+import {
+  renderClothingFromFile,
+  type ClothingRenderResult,
+} from "@/lib/api/clothing";
 
 type Status = "idle" | "scanning" | "preview" | "received";
 
@@ -37,6 +44,7 @@ const SCAN_ON_SEND_MS = 2400;
 export default function PhotoUpload() {
   const inputRef = useRef<HTMLInputElement>(null);
   const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clothingPhaseTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const previewRef = useRef<string | null>(null);
   const activeActionRef = useRef<ActionKey>(DEFAULT_ACTION_KEY);
   const actionParamsRef = useRef<PhotoActionParams>({});
@@ -63,9 +71,17 @@ export default function PhotoUpload() {
   const [pipelinePhase, setPipelinePhase] = useState<
     "analyzing" | "running" | "done" | null
   >(null);
+  const [clothingResult, setClothingResult] =
+    useState<ClothingRenderResult | null>(null);
+  const [clothingPhase, setClothingPhase] = useState<ClothingPhase | null>(
+    null,
+  );
+  const [clothingError, setClothingError] = useState<string | null>(null);
 
   const currentAction = actionMap[activeAction];
   const isAiPipeline = activeAction === "ai-auto-edit";
+  const isClothingMode = activeAction === "clothing-cinematic";
+  const isLongRunningMode = isAiPipeline || isClothingMode;
 
   useLayoutEffect(() => {
     previewRef.current = preview;
@@ -112,6 +128,21 @@ export default function PhotoUpload() {
     }
   }, []);
 
+  const clearClothingPhaseTimers = useCallback(() => {
+    for (const id of clothingPhaseTimersRef.current) {
+      clearTimeout(id);
+    }
+    clothingPhaseTimersRef.current = [];
+  }, []);
+
+  const startClothingPhaseTimers = useCallback(() => {
+    clearClothingPhaseTimers();
+    setClothingPhase("analyzing-style");
+    clothingPhaseTimersRef.current = [
+      setTimeout(() => setClothingPhase("generating"), 45_000),
+    ];
+  }, [clearClothingPhaseTimers]);
+
   const finishScan = useCallback(
     async (nextStatus: Status) => {
       const source = previewRef.current;
@@ -146,6 +177,19 @@ export default function PhotoUpload() {
             return finalUrl;
           });
           setPipelinePhase("done");
+        } else if (actionKey === "clothing-cinematic") {
+          setClothingResult(null);
+          setClothingError(null);
+          startClothingPhaseTimers();
+
+          const result = await renderClothingFromFile(source);
+          clearClothingPhaseTimers();
+          setClothingResult(result);
+          setClothingPhase("done");
+          setProcessedPreview((prev) => {
+            revokeProcessed(prev);
+            return result.outputUrl;
+          });
         } else {
           const processed = await runPhotoAction(
             actionKey,
@@ -159,14 +203,22 @@ export default function PhotoUpload() {
         }
       } catch (err) {
         console.error(`Action "${actionKey}" failed:`, err);
-        setProcessedPreview(source);
-        setPipelinePhase(null);
+        const message =
+          err instanceof Error ? err.message : "Processing failed";
+        if (actionKey === "clothing-cinematic") {
+          setClothingError(message);
+          clearClothingPhaseTimers();
+          setClothingPhase(null);
+        } else {
+          setProcessedPreview(source);
+          setPipelinePhase(null);
+        }
       } finally {
         setIsGenerating(false);
         setStatus(nextStatus);
       }
     },
-    [revokeProcessed],
+    [revokeProcessed, startClothingPhaseTimers, clearClothingPhaseTimers],
   );
 
   const startScan = useCallback(
@@ -174,6 +226,12 @@ export default function PhotoUpload() {
       clearScanTimer();
       setScanPhase(phase);
       setStatus("scanning");
+
+      if (activeActionRef.current === "clothing-cinematic") {
+        void finishScan(nextStatus);
+        return;
+      }
+
       const isAi = activeActionRef.current === "ai-auto-edit";
       const duration =
         phase === "upload"
@@ -191,7 +249,13 @@ export default function PhotoUpload() {
     [clearScanTimer, finishScan],
   );
 
-  useEffect(() => () => clearScanTimer(), [clearScanTimer]);
+  useEffect(
+    () => () => {
+      clearScanTimer();
+      clearClothingPhaseTimers();
+    },
+    [clearScanTimer, clearClothingPhaseTimers],
+  );
 
   const handleFile = useCallback(
     (file: File | null) => {
@@ -206,6 +270,9 @@ export default function PhotoUpload() {
       setPipelineMeta(null);
       setPipelineProgress(null);
       setPipelinePhase(null);
+      setClothingResult(null);
+      setClothingPhase(null);
+      setClothingError(null);
 
       const url = URL.createObjectURL(file);
       previewRef.current = url;
@@ -255,6 +322,10 @@ export default function PhotoUpload() {
     setPipelineMeta(null);
     setPipelineProgress(null);
     setPipelinePhase(null);
+    setClothingResult(null);
+    setClothingPhase(null);
+    setClothingError(null);
+    clearClothingPhaseTimers();
     if (inputRef.current) inputRef.current.value = "";
   };
 
@@ -263,15 +334,21 @@ export default function PhotoUpload() {
     processedPreview &&
     (status === "preview" || status === "received");
 
-  const scanLabel = isAiPipeline
-    ? pipelinePhase === "running"
-      ? "RUNNING AI PIPELINE"
-      : pipelinePhase === "done"
-        ? "PIPELINE COMPLETE"
-        : "AI ANALYZING IMAGE"
-    : scanPhase === "send"
-      ? "TRANSMITTING PHOTO"
-      : currentAction.scanningLabel;
+  const scanLabel = isClothingMode
+    ? clothingPhase === "generating"
+      ? "GENERATING CINEMATIC SHOT"
+      : clothingPhase === "analyzing-style"
+        ? "MATCHING STYLE & COLORS"
+        : "REMOVING BACKGROUND"
+    : isAiPipeline
+      ? pipelinePhase === "running"
+        ? "RUNNING AI PIPELINE"
+        : pipelinePhase === "done"
+          ? "PIPELINE COMPLETE"
+          : "AI ANALYZING IMAGE"
+      : scanPhase === "send"
+        ? "TRANSMITTING PHOTO"
+        : currentAction.scanningLabel;
 
   if (status === "received" && showComparison) {
     return (
@@ -279,10 +356,32 @@ export default function PhotoUpload() {
         <PhotoComparison
           original={preview}
           processed={processedPreview}
-          processedLabel={currentAction.label}
+          processedLabel={
+            isClothingMode ? "Cinematic shot" : currentAction.label
+          }
           fileName={fileName}
           showTransparencyGrid={activeAction === "clear-background"}
         />
+
+        {isClothingMode && clothingResult && (
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p className="mb-3 text-center text-xs font-medium uppercase tracking-wider text-white/40">
+              Original photo (sent to Replicate)
+            </p>
+            <div className="mx-auto max-w-xs overflow-hidden rounded-xl ring-1 ring-white/10 processed-checkerboard">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={clothingResult.sourceImageUrl}
+                alt="Source clothing photo"
+                className="h-auto w-full object-contain"
+              />
+            </div>
+          </div>
+        )}
+
+        {isClothingMode && clothingResult && (
+          <ClothingProgressPanel phase="done" result={clothingResult} />
+        )}
 
         <div className="flex flex-col items-center rounded-3xl border border-emerald-500/30 bg-linear-to-br from-emerald-950/40 to-teal-950/20 px-8 py-10 text-center shadow-2xl shadow-emerald-900/20">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20 ring-2 ring-emerald-400/50">
@@ -321,10 +420,10 @@ export default function PhotoUpload() {
   if (status === "scanning" && preview) {
     return (
       <div
-        className={`w-full space-y-4 ${isAiPipeline ? "max-w-4xl" : "max-w-lg"}`}
+        className={`w-full space-y-4 ${isLongRunningMode ? "max-w-4xl" : "max-w-lg"}`}
       >
         <PhotoScanOverlay
-          key={`${scanPhase}-${activeAction}-${pipelinePhase ?? "idle"}`}
+          key={`${scanPhase}-${activeAction}-${pipelinePhase ?? clothingPhase ?? "idle"}`}
           preview={preview}
           fileName={fileName}
           label={scanLabel}
@@ -337,8 +436,16 @@ export default function PhotoUpload() {
             meta={pipelineMeta}
           />
         )}
+        {isClothingMode && clothingPhase && (
+          <ClothingProgressPanel
+            phase={clothingPhase}
+            result={clothingResult}
+            error={clothingError}
+          />
+        )}
         <p className="text-center text-xs text-white/40">
           Running: {currentAction.label}
+          {isClothingMode ? " — original photo + prompt → Replicate (2–5 min)" : ""}
           {isGenerating ? " — processing…" : ""}
         </p>
       </div>
@@ -351,10 +458,35 @@ export default function PhotoUpload() {
         <PhotoComparison
           original={preview}
           processed={processedPreview}
-          processedLabel={isAiPipeline ? "AI Enhanced" : currentAction.label}
+          processedLabel={
+            isClothingMode
+              ? "Cinematic shot"
+              : isAiPipeline
+                ? "AI Enhanced"
+                : currentAction.label
+          }
           fileName={fileName}
           showTransparencyGrid={activeAction === "clear-background"}
         />
+
+        {isClothingMode && clothingResult && (
+          <>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="mb-3 text-center text-xs font-medium uppercase tracking-wider text-white/40">
+                Cutout used for generation
+              </p>
+              <div className="mx-auto max-w-sm overflow-hidden rounded-xl ring-1 ring-white/10 processed-checkerboard">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={clothingResult.sourceImageUrl}
+                  alt="Source clothing photo"
+                  className="h-auto w-full object-contain"
+                />
+              </div>
+            </div>
+            <ClothingProgressPanel phase="done" result={clothingResult} />
+          </>
+        )}
 
         {isAiPipeline && pipelinePlan && (
           <PipelineProgressPanel
