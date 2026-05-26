@@ -10,7 +10,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.contex.app",
+      "bundleIdentifier": "com.contex.ai",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "ConteX needs access to your photos to generate styled images.",
         "NSCameraUsageDescription": "ConteX needs the camera to capture photos for generation."
@@ -20,7 +20,7 @@
       "adaptiveIcon": {
         "backgroundColor": "#07060b"
       },
-      "package": "com.contex.app",
+      "package": "com.contex.ai",
       "permissions": [
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.CAMERA"
