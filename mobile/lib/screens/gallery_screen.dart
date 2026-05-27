@@ -10,6 +10,8 @@ import "../models/saved_creation.dart";
 import "../services/creation_history_service.dart";
 import "../theme/app_theme.dart";
 import "../widgets/ambient_background.dart";
+import "../widgets/app_bottom_nav_bar.dart";
+import "../widgets/app_main_header.dart";
 
 class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
@@ -103,6 +105,24 @@ class _GalleryScreenState extends State<GalleryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      bottomNavigationBar: SafeArea(
+        child: AppBottomNavBar(
+          currentTab: AppBottomTab.gallery,
+          galleryCount: _creations.length,
+          onTabSelected: (tab) {
+            switch (tab) {
+              case AppBottomTab.home:
+                Navigator.of(context).pushReplacementNamed(AppRoutes.landing);
+                return;
+              case AppBottomTab.gallery:
+                return;
+              case AppBottomTab.contex:
+                Navigator.of(context).pushReplacementNamed(AppRoutes.contex);
+                return;
+            }
+          },
+        ),
+      ),
       body: Stack(
         children: [
           const AmbientBackground(),
@@ -110,39 +130,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 4, 16, 8),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          size: 20,
-                        ),
-                        color: AppColors.textPrimary,
-                      ),
-                      Expanded(
-                        child: Text(
-                          "My gallery",
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                      if (_creations.isNotEmpty)
-                        Text(
-                          "${_creations.length}",
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                    ],
-                  ),
+                AppMainHeader(
+                  tab: AppBottomTab.gallery,
+                  galleryCount: _creations.length,
                 ),
                 Expanded(
                   child: _loading
@@ -155,7 +145,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
                       : _creations.isEmpty
                       ? _EmptyGallery(
                           onCreate: () {
-                            Navigator.of(context).pop();
                             Navigator.of(context).pushNamed(AppRoutes.studio);
                           },
                         )

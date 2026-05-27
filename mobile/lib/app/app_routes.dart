@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 
 import "../models/generation_session.dart";
 import "../screens/gallery_screen.dart";
+import "../screens/contex_page.dart";
 import "../screens/image_viewer_screen.dart";
 import "../screens/landing_screen.dart";
 import "../screens/result_screen.dart";
@@ -11,6 +12,7 @@ import "../screens/studio_screen.dart";
 abstract final class AppRoutes {
   static const splash = "/";
   static const landing = "/home";
+  static const contex = "/contex";
   static const studio = "/studio";
   static const gallery = "/gallery";
   static const result = "/result";
@@ -22,10 +24,12 @@ abstract final class AppRoutes {
         return _fade(const SplashScreen(), settings);
       case landing:
         return _fade(const LandingScreen(), settings);
+      case contex:
+        return _fade(const ContexPage(), settings);
       case studio:
         return _slide(const StudioScreen(), settings);
       case gallery:
-        return _slide(const GalleryScreen(), settings);
+        return _fade(const GalleryScreen(), settings);
       case result:
         final session = settings.arguments;
         if (session is! GenerationSession) {

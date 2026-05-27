@@ -8,18 +8,21 @@ import "../app/app_routes.dart";
 import "../models/generation_session.dart";
 import "../models/saved_creation.dart";
 import "../theme/app_theme.dart";
+import "../services/deletion_hint_storage.dart";
 
-class CreationHistorySection extends StatelessWidget {
+class CreationHistorySection extends StatefulWidget {
   const CreationHistorySection({
     super.key,
     required this.creations,
     this.onSeeAll,
     this.onDelete,
+    this.onCreateMore,
   });
 
   final List<SavedCreation> creations;
   final VoidCallback? onSeeAll;
   final Future<void> Function(SavedCreation item)? onDelete;
+  final VoidCallback? onCreateMore;
 
   void _openCreation(BuildContext context, SavedCreation item) {
     HapticFeedback.selectionClick();
@@ -29,7 +32,38 @@ class CreationHistorySection extends StatelessWidget {
   }
 
   @override
+  State<CreationHistorySection> createState() => _CreationHistorySectionState();
+}
+
+class _CreationHistorySectionState extends State<CreationHistorySection> {
+  bool? _hintSeen;
+  bool _queuedMarkSeen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    DeletionHintStorage.hasSeen().then((v) {
+      if (!mounted) return;
+      setState(() => _hintSeen = v);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final creations = widget.creations;
+    final onDelete = widget.onDelete;
+    final onSeeAll = widget.onSeeAll;
+
+    final shouldShowDeleteHint =
+        creations.isNotEmpty && onDelete != null && _hintSeen == false;
+
+    if (shouldShowDeleteHint && !_queuedMarkSeen) {
+      _queuedMarkSeen = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        DeletionHintStorage.markSeen();
+      });
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -47,7 +81,7 @@ class CreationHistorySection extends StatelessWidget {
               ),
             ),
             if (creations.isNotEmpty) ...[
-              if (onDelete != null)
+              if (shouldShowDeleteHint)
                 Padding(
                   padding: const EdgeInsets.only(right: 4),
                   child: Text(
@@ -83,24 +117,147 @@ class CreationHistorySection extends StatelessWidget {
             height: 220,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: creations.length > 6 ? 6 : creations.length,
+              itemCount: _historyRowItemCount(
+                creations.length,
+                showCreateMore: widget.onCreateMore != null,
+              ),
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (context, index) {
-                final item = creations[index];
+                if (widget.onCreateMore != null && index == 0) {
+                  return _CreateMoreCard(onTap: widget.onCreateMore!);
+                }
+                final creationIndex =
+                    widget.onCreateMore != null ? index - 1 : index;
+                final item = creations[creationIndex];
                 return _HistoryCard(
                   creation: item,
-                  onTap: () => _openCreation(context, item),
+                  onTap: () => widget._openCreation(context, item),
                   onLongPress: onDelete == null
                       ? null
                       : () async {
                           HapticFeedback.mediumImpact();
-                          await onDelete!(item);
+                          await onDelete(item);
                         },
                 );
               },
             ),
           ),
       ],
+    );
+  }
+}
+
+int _historyRowItemCount(int creationCount, {required bool showCreateMore}) {
+  final shown = creationCount > 6 ? 6 : creationCount;
+  return shown + (showCreateMore ? 1 : 0);
+}
+
+class _CreateMoreCard extends StatelessWidget {
+  const _CreateMoreCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Ink(
+          width: 160,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppColors.violet.withValues(alpha: 0.4),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.violet.withValues(alpha: 0.12),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.violet.withValues(alpha: 0.14),
+                AppColors.surface.withValues(alpha: 0.85),
+              ],
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(19),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.violet.withValues(alpha: 0.18),
+                            border: Border.all(
+                              color: AppColors.violet.withValues(alpha: 0.45),
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.add_rounded,
+                            color: AppColors.violet,
+                            size: 28,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          "Create more",
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            "Tap to open the studio",
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11,
+                              height: 1.3,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+                  color: AppColors.surface.withValues(alpha: 0.95),
+                  child: Text(
+                    "New transformation",
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -14,7 +14,6 @@ import "../widgets/glass_card.dart";
 import "../services/creation_history_service.dart";
 import "../services/image_download_service.dart";
 import "../widgets/app_snackbar.dart";
-import "../widgets/primary_button.dart";
 import "image_viewer_screen.dart";
 
 class ResultScreen extends StatefulWidget {
@@ -31,7 +30,6 @@ class _ResultScreenState extends State<ResultScreen> {
   final _historyService = CreationHistoryService.instance;
   bool _showOriginal = false;
   bool _downloading = false;
-  bool _deleting = false;
   String? _savedId;
   String? _cachedOutputPath;
   String? _cachedInputPath;
@@ -109,56 +107,6 @@ class _ResultScreenState extends State<ResultScreen> {
     }
   }
 
-  Future<void> _deleteFromGallery() async {
-    final id = _savedId;
-    if (id == null || _deleting) return;
-
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surfaceElevated,
-        title: Text(
-          "Delete creation?",
-          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
-        ),
-        content: Text(
-          "This removes the saved original and generated images from this device.",
-          style: GoogleFonts.plusJakartaSans(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("Cancel"),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              "Delete",
-              style: TextStyle(color: AppColors.error),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true || !mounted) return;
-
-    setState(() => _deleting = true);
-    try {
-      await _historyService.delete(id);
-      if (!mounted) return;
-      Navigator.of(
-        context,
-      ).pushNamedAndRemoveUntil(AppRoutes.landing, (_) => false);
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Could not delete")));
-    } finally {
-      if (mounted) setState(() => _deleting = false);
-    }
-  }
-
   Future<void> _downloadImage() async {
     if (_downloading) return;
 
@@ -217,15 +165,29 @@ class _ResultScreenState extends State<ResultScreen> {
 
   void _viewFullscreen() {
     HapticFeedback.selectionClick();
+    final showingOriginal = _showOriginal && _session.hasOriginalPhoto;
     Navigator.of(context).pushNamed(
       AppRoutes.imageViewer,
       arguments: ImageViewerArgs(
         imageUrl: _session.result.outputUrl,
-        localPath: _outputPath,
+        localPath: showingOriginal ? _inputPath : _outputPath,
         title: _session.style.label,
-        subtitle: "Generated",
+        subtitle: showingOriginal ? "Original" : "Generated",
       ),
     );
+  }
+
+  void _setShowOriginal(bool showOrig) {
+    if (showOrig && !_session.hasOriginalPhoto) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Original photo isn't available on this device"),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    setState(() => _showOriginal = showOrig);
   }
 
   void _createAnother() {
@@ -234,12 +196,6 @@ class _ResultScreenState extends State<ResultScreen> {
       AppRoutes.studio,
       (route) => route.settings.name == AppRoutes.landing || route.isFirst,
     );
-  }
-
-  void _goHome() {
-    Navigator.of(
-      context,
-    ).pushNamedAndRemoveUntil(AppRoutes.landing, (_) => false);
   }
 
   @override
@@ -257,7 +213,7 @@ class _ResultScreenState extends State<ResultScreen> {
           SafeArea(
             child: Column(
               children: [
-                _ResultTopBar(onHome: _goHome),
+                const _ResultTopBar(),
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
@@ -265,27 +221,12 @@ class _ResultScreenState extends State<ResultScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _SuccessBadge(),
-                        const SizedBox(height: 20),
                         _StyleHeroCard(style: style),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 14),
                         if (hasOriginal) ...[
                           _CompareToggle(
                             showOriginal: _showOriginal,
-                            onChanged: (showOrig) {
-                              if (showOrig && !_session.hasOriginalPhoto) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      "Original photo isn't available on this device",
-                                    ),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                                return;
-                              }
-                              setState(() => _showOriginal = showOrig);
-                            },
+                            onChanged: _setShowOriginal,
                           ),
                           const SizedBox(height: 12),
                         ],
@@ -294,6 +235,10 @@ class _ResultScreenState extends State<ResultScreen> {
                           localPath: _inputPath,
                           outputPath: _outputPath,
                           outputUrl: result.outputUrl,
+                          downloading: _downloading,
+                          onFullscreen: _viewFullscreen,
+                          onDownload: _downloadImage,
+                          onCompareChanged: _setShowOriginal,
                         ),
                         const SizedBox(height: 20),
                         GlassCard(
@@ -319,7 +264,7 @@ class _ResultScreenState extends State<ResultScreen> {
                             ],
                           ),
                         ),
-                        SizedBox(height: 120 + bottom),
+                        SizedBox(height: 72 + bottom),
                       ],
                     ),
                   ),
@@ -337,56 +282,57 @@ class _ResultScreenState extends State<ResultScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (_savedId == null) ...[
-                PrimaryButton(
-                  label: "Retry gallery save",
-                  icon: Icons.save_alt_rounded,
+                TextButton.icon(
                   onPressed: _retryGallerySave,
+                  icon: const Icon(Icons.save_alt_rounded, size: 18),
+                  label: const Text("Retry gallery save"),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFFC4B5FD),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 4),
               ],
-              PrimaryButton(
-                label: _downloading ? "Saving…" : "Save to Photos",
-                icon: Icons.download_rounded,
-                loading: _downloading,
-                onPressed: _downloadImage,
-              ),
-              const SizedBox(height: 10),
-              if (_savedId != null)
-                PrimaryButton(
-                  label: _deleting ? "Deleting…" : "Delete from gallery",
-                  icon: Icons.delete_outline_rounded,
-                  loading: _deleting,
-                  variant: PrimaryButtonVariant.outline,
-                  onPressed: _deleteFromGallery,
-                ),
-              if (_savedId != null) const SizedBox(height: 10),
-              PrimaryButton(
-                label: "View full screen",
-                icon: Icons.fullscreen_rounded,
-                variant: PrimaryButtonVariant.outline,
-                onPressed: _viewFullscreen,
-              ),
-              const SizedBox(height: 10),
               Row(
                 children: [
                   Expanded(
-                    child: PrimaryButton(
-                      label: "Create another",
-                      icon: Icons.add_photo_alternate_outlined,
-                      variant: PrimaryButtonVariant.outline,
+                    child: OutlinedButton.icon(
                       onPressed: _createAnother,
+                      icon: const Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 18,
+                      ),
+                      label: Text(
+                        "Create another",
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.textPrimary,
+                        side: const BorderSide(color: AppColors.borderStrong),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
-                  IconButton.filled(
+                  IconButton.outlined(
                     onPressed: _openExternal,
-                    style: IconButton.styleFrom(
-                      backgroundColor: AppColors.surfaceElevated,
-                      foregroundColor: AppColors.textPrimary,
-                      minimumSize: const Size(56, 56),
-                    ),
-                    icon: const Icon(Icons.open_in_new_rounded),
+                    icon: const Icon(Icons.open_in_new_rounded, size: 20),
                     tooltip: "Open in browser",
+                    style: IconButton.styleFrom(
+                      foregroundColor: AppColors.textPrimary,
+                      side: const BorderSide(color: AppColors.borderStrong),
+                      minimumSize: const Size(44, 44),
+                      fixedSize: const Size(44, 44),
+                    ),
                   ),
                 ],
               ),
@@ -399,9 +345,7 @@ class _ResultScreenState extends State<ResultScreen> {
 }
 
 class _ResultTopBar extends StatelessWidget {
-  const _ResultTopBar({required this.onHome});
-
-  final VoidCallback onHome;
+  const _ResultTopBar();
 
   @override
   Widget build(BuildContext context) {
@@ -424,52 +368,7 @@ class _ResultTopBar extends StatelessWidget {
               ),
             ),
           ),
-          TextButton(
-            onPressed: onHome,
-            child: Text(
-              "Home",
-              style: GoogleFonts.plusJakartaSans(
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFFC4B5FD),
-              ),
-            ),
-          ),
         ],
-      ),
-    );
-  }
-}
-
-class _SuccessBadge extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          color: AppColors.success.withValues(alpha: 0.12),
-          border: Border.all(color: AppColors.success.withValues(alpha: 0.35)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.check_circle_rounded,
-              color: AppColors.success,
-              size: 18,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              "Generation complete",
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.success,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -483,30 +382,30 @@ class _StyleHeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0x668B5CF6)),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x558B5CF6)),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0x338B5CF6), Color(0x1A1A1A26)],
+          colors: [Color(0x268B5CF6), Color(0x141A1A26)],
         ),
       ),
       child: Row(
         children: [
           Container(
-            width: 64,
-            height: 64,
+            width: 40,
+            height: 40,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(12),
               color: Colors.white.withValues(alpha: 0.06),
               border: Border.all(color: AppColors.borderStrong),
             ),
-            child: Text(style.emoji, style: const TextStyle(fontSize: 32)),
+            child: Text(style.emoji, style: const TextStyle(fontSize: 20)),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -514,19 +413,19 @@ class _StyleHeroCard extends StatelessWidget {
                 Text(
                   "Styled as",
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2,
+                    letterSpacing: 1.1,
                     color: AppColors.textMuted,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   style.label,
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
                     color: AppColors.textPrimary,
                   ),
                 ),
@@ -622,12 +521,20 @@ class _ImageFrame extends StatelessWidget {
     required this.localPath,
     required this.outputPath,
     required this.outputUrl,
+    required this.downloading,
+    required this.onFullscreen,
+    required this.onDownload,
+    required this.onCompareChanged,
   });
 
   final bool showOriginal;
   final String? localPath;
   final String? outputPath;
   final String outputUrl;
+  final bool downloading;
+  final VoidCallback onFullscreen;
+  final VoidCallback onDownload;
+  final ValueChanged<bool> onCompareChanged;
 
   static Widget _placeholder(String message) {
     return Container(
@@ -708,9 +615,97 @@ class _ImageFrame extends StatelessWidget {
         highlight: true,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(23),
-          child: IndexedStack(
-            index: index,
-            children: [_buildOriginal(), _buildGenerated()],
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              IndexedStack(
+                index: index,
+                children: [_buildOriginal(), _buildGenerated()],
+              ),
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onHorizontalDragEnd: (details) {
+                    final velocity = details.primaryVelocity ?? 0;
+                    if (velocity.abs() < 200) return;
+                    // Left swipe reveals Original, right swipe reveals Generated.
+                    if (velocity < 0) {
+                      onCompareChanged(true);
+                    } else {
+                      onCompareChanged(false);
+                    }
+                  },
+                ),
+              ),
+              Positioned(
+                top: 10,
+                right: 10,
+                child: _ImageOverlayButton(
+                  icon: Icons.fullscreen_rounded,
+                  tooltip: "Full screen",
+                  onPressed: onFullscreen,
+                ),
+              ),
+              Positioned(
+                bottom: 10,
+                right: 10,
+                child: _ImageOverlayButton(
+                  icon: Icons.download_rounded,
+                  tooltip: "Save to Photos",
+                  loading: downloading,
+                  onPressed: downloading ? null : onDownload,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ImageOverlayButton extends StatelessWidget {
+  const _ImageOverlayButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.loading = false,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: Tooltip(
+        message: tooltip,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(999),
+          child: Ink(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.black.withValues(alpha: 0.55),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+            ),
+            child: Center(
+              child: loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Icon(icon, size: 18, color: Colors.white),
+            ),
           ),
         ),
       ),

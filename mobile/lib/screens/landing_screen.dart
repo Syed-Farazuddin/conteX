@@ -9,7 +9,8 @@ import "../services/creation_history_service.dart";
 import "../theme/app_theme.dart";
 import "../widgets/ambient_background.dart";
 import "../widgets/creation_history_section.dart";
-import "../widgets/app_logo.dart";
+import "../widgets/app_bottom_nav_bar.dart";
+import "../widgets/app_main_header.dart";
 import "../widgets/primary_button.dart";
 
 class LandingScreen extends StatefulWidget {
@@ -125,7 +126,7 @@ class _LandingScreenState extends State<LandingScreen>
     HapticFeedback.lightImpact();
     Navigator.of(
       context,
-    ).pushNamed(AppRoutes.gallery).then((_) => _loadHistory());
+    ).pushReplacementNamed(AppRoutes.gallery).then((_) => _loadHistory());
   }
 
   Future<void> _confirmDeleteCreation(SavedCreation item) async {
@@ -182,12 +183,34 @@ class _LandingScreenState extends State<LandingScreen>
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      bottomNavigationBar: SafeArea(
+        child: AppBottomNavBar(
+          currentTab: AppBottomTab.home,
+          galleryCount: _history.length,
+          onTabSelected: (tab) {
+            switch (tab) {
+              case AppBottomTab.home:
+                return;
+              case AppBottomTab.gallery:
+                _openGallery();
+                return;
+              case AppBottomTab.contex:
+                Navigator.of(context).pushReplacementNamed(AppRoutes.contex);
+                return;
+            }
+          },
+        ),
+      ),
       body: Stack(
         children: [
           const AmbientBackground(),
           SafeArea(
             child: Column(
               children: [
+                AppMainHeader(
+                  tab: AppBottomTab.home,
+                  galleryCount: _history.length,
+                ),
                 Expanded(
                   child: RefreshIndicator(
                     color: AppColors.violet,
@@ -197,21 +220,22 @@ class _LandingScreenState extends State<LandingScreen>
                       physics: const AlwaysScrollableScrollPhysics(
                         parent: BouncingScrollPhysics(),
                       ),
-                      padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+                      padding: EdgeInsets.fromLTRB(
+                        24,
+                        4,
+                        24,
+                        _history.isEmpty ? 24 : 88 + bottom,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _BrandMark(
-                            galleryCount: _history.length,
-                            onOpenGallery: _openGallery,
-                          ),
-                          const SizedBox(height: 28),
                           const _HeroHeadline(),
                           const SizedBox(height: 32),
                           CreationHistorySection(
                             creations: _history,
                             onSeeAll: _openGallery,
                             onDelete: _confirmDeleteCreation,
+                            onCreateMore: _history.isEmpty ? null : _openStudio,
                           ),
                           const SizedBox(height: 32),
                           Text(
@@ -259,142 +283,19 @@ class _LandingScreenState extends State<LandingScreen>
                     ),
                   ),
                 ),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(24, 0, 24, 12 + bottom),
-                  child: Column(
-                    children: [
-                      PrimaryButton(
-                        label: "Start creating",
-                        icon: Icons.arrow_forward_rounded,
-                        onPressed: _openStudio,
-                      ),
-                      const SizedBox(height: 12),
-                    ],
+                if (_history.isEmpty)
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(24, 0, 24, 12 + bottom),
+                    child: PrimaryButton(
+                      label: "Start creating",
+                      icon: Icons.arrow_forward_rounded,
+                      onPressed: _openStudio,
+                    ),
                   ),
-                ),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _BrandMark extends StatelessWidget {
-  const _BrandMark({required this.galleryCount, required this.onOpenGallery});
-
-  final int galleryCount;
-  final VoidCallback onOpenGallery;
-
-  @override
-  Widget build(BuildContext context) {
-    final maxLogoWidth = MediaQuery.sizeOf(context).width - 24 * 2 - 130;
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 4, bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: AppLogo.wordmark(
-              height: 56,
-              maxWidth: maxLogoWidth.clamp(160, 280),
-            ),
-          ),
-          const SizedBox(width: 12),
-          _GalleryHeaderButton(count: galleryCount, onPressed: onOpenGallery),
-        ],
-      ),
-    );
-  }
-}
-
-class _GalleryHeaderButton extends StatelessWidget {
-  const _GalleryHeaderButton({required this.count, required this.onPressed});
-
-  final int count;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(16),
-        child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            color: AppColors.surfaceElevated.withValues(alpha: 0.92),
-            border: Border.all(color: AppColors.borderStrong),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.35),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Icon(
-                    Icons.photo_library_rounded,
-                    size: 22,
-                    color: AppColors.violet.withValues(alpha: 0.95),
-                  ),
-                  if (count > 0)
-                    Positioned(
-                      right: -8,
-                      top: -8,
-                      child: Container(
-                        constraints: const BoxConstraints(minWidth: 18),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [AppColors.violet, AppColors.fuchsia],
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: AppColors.background,
-                            width: 1.5,
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          count > 99 ? "99+" : "$count",
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            height: 1,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(width: 8),
-              Text(
-                "Gallery",
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.2,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
