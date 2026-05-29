@@ -83,34 +83,6 @@ class ContexPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 22),
                         _ExampleGrid(),
-                        const SizedBox(height: 18),
-                        // GlassCard(
-                        //   child: Padding(
-                        //     padding: const EdgeInsets.all(16),
-                        //     child: Column(
-                        //       crossAxisAlignment: CrossAxisAlignment.start,
-                        //       children: [
-                        //         Text(
-                        //           "Saved locally",
-                        //           style: GoogleFonts.plusJakartaSans(
-                        //             fontSize: 16,
-                        //             fontWeight: FontWeight.w800,
-                        //             color: AppColors.textPrimary,
-                        //           ),
-                        //         ),
-                        //         const SizedBox(height: 6),
-                        //         Text(
-                        //           "Original + generated images are stored inside the app on this device. You can delete them anytime from the gallery or the result screen.",
-                        //           style: GoogleFonts.plusJakartaSans(
-                        //             fontSize: 13,
-                        //             height: 1.55,
-                        //             color: AppColors.textSecondary,
-                        //           ),
-                        //         ),
-                        //       ],
-                        //     ),
-                        //   ),
-                        // ),
                         const SizedBox(height: 20),
                       ],
                     ),

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import PhotoComparison from "./PhotoComparison";
 import StyleSelector from "./StyleSelector";
 import {
+  ApiConnectionError,
   fetchGenerationStyles,
   generateFromFile,
   type GenerationResult,
@@ -21,6 +22,10 @@ export default function GenerationStudio() {
   const [status, setStatus] = useState<Status>("idle");
   const [styles, setStyles] = useState<GenerationStyle[]>([]);
   const [apiReady, setApiReady] = useState(false);
+  const [apiStatus, setApiStatus] = useState<
+    "loading" | "ready" | "unconfigured" | "unreachable"
+  >("loading");
+  const [apiStatusMessage, setApiStatusMessage] = useState<string | null>(null);
   const [styleId, setStyleId] = useState(DEFAULT_STYLE_ID);
   const [preview, setPreview] = useState<string | null>(null);
   const [outputUrl, setOutputUrl] = useState<string | null>(null);
@@ -31,16 +36,39 @@ export default function GenerationStudio() {
   const [customPrompt, setCustomPrompt] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
+
     fetchGenerationStyles()
       .then(({ configured, styles: list }) => {
+        if (cancelled) return;
         setApiReady(configured);
         setStyles(list);
-        if (list.length && !list.some((s) => s.id === styleId)) {
-          setStyleId(list[0]!.id);
-        }
+        setApiStatus(configured ? "ready" : "unconfigured");
+        setApiStatusMessage(null);
+        setStyleId((current) =>
+          list.length && !list.some((s) => s.id === current)
+            ? list[0]!.id
+            : current,
+        );
       })
-      .catch(() => setApiReady(false));
-  }, [styleId]);
+      .catch((err) => {
+        if (cancelled) return;
+        setApiReady(false);
+        if (err instanceof ApiConnectionError) {
+          setApiStatus("unreachable");
+          setApiStatusMessage(err.message);
+        } else {
+          setApiStatus("unreachable");
+          setApiStatusMessage(
+            "Could not load styles from the API. Is the backend running?",
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const loadFile = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) return;
@@ -81,7 +109,18 @@ export default function GenerationStudio() {
 
   return (
     <div className="w-full max-w-lg space-y-5">
-      {!apiReady && (
+      {apiStatus === "loading" && (
+        <p className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/50">
+          Connecting to API…
+        </p>
+      )}
+      {apiStatus === "unreachable" && (
+        <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+          {apiStatusMessage ??
+            "Cannot reach the ConteX API. Run npm run dev in backend/ and set NEXT_PUBLIC_API_URL in frontend/.env.local."}
+        </p>
+      )}
+      {apiStatus === "unconfigured" && (
         <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
           Add <code className="text-amber-200">REPLICATE_API_TOKEN</code> to{" "}
           <code className="text-amber-200">backend/.env</code> and restart the
@@ -214,14 +253,6 @@ export default function GenerationStudio() {
               <span className="text-white/35">Prompt:</span> {result.prompt}
             </p>
           </div>
-          <a
-            href={outputUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="block text-center text-sm text-violet-300 hover:text-violet-200"
-          >
-            Open full image ↗
-          </a>
         </div>
       )}
     </div>

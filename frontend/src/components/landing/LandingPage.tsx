@@ -1,5 +1,19 @@
 import Image from "next/image";
 import Studio from "@/components/Studio";
+import MobilePhoneMockup from "@/components/landing/MobilePhoneMockup";
+
+const MOBILE_SCREENSHOTS = [
+  {
+    src: "/mobile_screenshots/home.png",
+    alt: "ConteX mobile app home screen",
+    label: "Home",
+  },
+  {
+    src: "/mobile_screenshots/generated.png",
+    alt: "ConteX mobile app generated result",
+    label: "Your creation",
+  },
+] as const;
 
 const FEATURES = [
   {
@@ -32,7 +46,7 @@ const FEATURES = [
   {
     title: "Web + mobile",
     description:
-      "Same generation styles on the website and the ConteX mobile app — one API.",
+      "Same generation styles on the website and the ConteX app — gallery, compare, and download.",
     icon: "📱",
     accent: "from-indigo-500/15 to-violet-500/10",
     ring: "ring-indigo-400/25",
@@ -92,6 +106,12 @@ export default function LandingPage() {
               className="text-sm text-white/50 transition hover:text-white/90"
             >
               Features
+            </a>
+            <a
+              href="#mobile-app"
+              className="text-sm text-white/50 transition hover:text-white/90"
+            >
+              Mobile app
             </a>
             <a
               href="#how-it-works"
@@ -223,6 +243,54 @@ export default function LandingPage() {
               </p>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section id="mobile-app" className="mx-auto max-w-6xl px-6 py-20">
+        <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-cyan-300/70">
+              Mobile app
+            </p>
+            <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+              ConteX on your phone
+            </h2>
+            <p className="mt-4 max-w-md text-white/50">
+              Browse styles, generate from your gallery, save creations locally,
+              and compare original vs generated — the same flow as the web
+              studio, built for iOS and Android.
+            </p>
+            <ul className="mt-8 space-y-3 text-sm text-white/55">
+              <li className="flex gap-3">
+                <span className="text-violet-300">✓</span>
+                Your creations gallery with swipe-friendly cards
+              </li>
+              <li className="flex gap-3">
+                <span className="text-violet-300">✓</span>
+                Full-screen preview and save to Photos
+              </li>
+              <li className="flex gap-3">
+                <span className="text-violet-300">✓</span>
+                Glass tab bar — Home, Gallery, and ConteX info
+              </li>
+            </ul>
+          </div>
+
+          <div className="landing-fade-up landing-delay-2 relative flex flex-wrap items-end justify-center gap-6 sm:gap-10">
+            <div className="absolute -inset-6 rounded-[2.5rem] bg-linear-to-br from-cyan-500/10 via-violet-500/15 to-fuchsia-500/10 blur-2xl" />
+            <div className="relative flex items-end justify-center gap-4 sm:gap-8">
+              {MOBILE_SCREENSHOTS.map((shot, index) => (
+                <MobilePhoneMockup
+                  key={shot.src}
+                  src={shot.src}
+                  alt={shot.alt}
+                  label={shot.label}
+                  tilt={index === 0 ? "left" : "right"}
+                  priority={index === 0}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 

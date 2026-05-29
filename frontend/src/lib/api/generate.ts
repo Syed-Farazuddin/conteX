@@ -21,17 +21,41 @@ export type GenerationResult = {
   generatedAt: string;
 };
 
+export class ApiConnectionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ApiConnectionError";
+  }
+}
+
 export async function fetchGenerationStyles(): Promise<{
   configured: boolean;
   styles: GenerationStyle[];
 }> {
-  const res = await fetch(`${API_BASE}/api/generate/styles`, {
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/api/generate/styles`, {
+      cache: "no-store",
+    });
+  } catch {
+    throw new ApiConnectionError(
+      `Cannot reach the API at ${API_BASE}. Start the ConteX backend (npm run dev in backend/).`,
+    );
+  }
+
   const body = (await res.json()) as {
     configured?: boolean;
     styles?: GenerationStyle[];
+    message?: string;
   };
+
+  if (!res.ok) {
+    throw new ApiConnectionError(
+      body.message ??
+        `API returned ${res.status}. Another app may be using port 4000 — try PORT=4001 in backend/.env and NEXT_PUBLIC_API_URL=http://localhost:4001 in frontend/.env.local.`,
+    );
+  }
+
   return {
     configured: Boolean(body.configured),
     styles: body.styles ?? [],

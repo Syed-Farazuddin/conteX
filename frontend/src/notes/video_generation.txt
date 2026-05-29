@@ -1,0 +1,10 @@
+Image/Image Sequence
+        ↓
+Motion Generation
+        ↓
+Camera Movement
+        ↓
+Human Animation
+        ↓
+Video Rendering
+

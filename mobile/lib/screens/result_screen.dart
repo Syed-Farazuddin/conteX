@@ -14,7 +14,7 @@ import "../widgets/glass_card.dart";
 import "../services/creation_history_service.dart";
 import "../services/image_download_service.dart";
 import "../widgets/app_snackbar.dart";
-import "image_viewer_screen.dart";
+import "../widgets/image_preview_dialog.dart";
 
 class ResultScreen extends StatefulWidget {
   const ResultScreen({super.key, required this.session});
@@ -166,14 +166,12 @@ class _ResultScreenState extends State<ResultScreen> {
   void _viewFullscreen() {
     HapticFeedback.selectionClick();
     final showingOriginal = _showOriginal && _session.hasOriginalPhoto;
-    Navigator.of(context).pushNamed(
-      AppRoutes.imageViewer,
-      arguments: ImageViewerArgs(
-        imageUrl: _session.result.outputUrl,
-        localPath: showingOriginal ? _inputPath : _outputPath,
-        title: _session.style.label,
-        subtitle: showingOriginal ? "Original" : "Generated",
-      ),
+    showImagePreviewDialog(
+      context,
+      localPath: showingOriginal ? _inputPath : _outputPath,
+      remoteUrl: _session.result.outputUrl,
+      title: _session.style.label,
+      subtitle: showingOriginal ? "Original" : "Generated",
     );
   }
 
