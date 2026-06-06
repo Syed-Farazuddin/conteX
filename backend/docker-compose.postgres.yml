@@ -1,0 +1,23 @@
+version: "3.8"
+services:
+  contex-postgres:
+    image: postgres:15
+    container_name: contex-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: contex
+      POSTGRES_PASSWORD: contex_pass
+      POSTGRES_DB: contex_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U contex"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
+    name: contex_postgres_data
