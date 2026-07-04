@@ -1,11 +1,14 @@
 import "package:flutter/material.dart";
 
 import "../models/generation_session.dart";
+import "../screens/dashboard_screen.dart";
 import "../screens/gallery_screen.dart";
 import "../screens/contex_page.dart";
 import "../screens/image_viewer_screen.dart";
 import "../screens/landing_screen.dart";
+import "../screens/login_screen.dart";
 import "../screens/result_screen.dart";
+import "../screens/signup_screen.dart";
 import "../screens/splash_screen.dart";
 import "../screens/studio_screen.dart";
 
@@ -17,6 +20,9 @@ abstract final class AppRoutes {
   static const gallery = "/gallery";
   static const result = "/result";
   static const imageViewer = "/viewer";
+  static const login = "/login";
+  static const signup = "/signup";
+  static const dashboard = "/dashboard";
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -30,6 +36,12 @@ abstract final class AppRoutes {
         return _slide(const StudioScreen(), settings);
       case gallery:
         return _fade(const GalleryScreen(), settings);
+      case login:
+        return _fade(const LoginScreen(), settings);
+      case signup:
+        return _fade(const SignupScreen(), settings);
+      case dashboard:
+        return _slide(const DashboardScreen(), settings);
       case result:
         final session = settings.arguments;
         if (session is! GenerationSession) {

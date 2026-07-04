@@ -60,6 +60,23 @@
       "path": "frontend",
       "problemMatcher": [],
       "group": "build"
+    },
+    {
+      "label": "mobile: flutter run",
+      "type": "shell",
+      "command": "flutter",
+      "args": [
+        "run"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/mobile"
+      },
+      "isBackground": false,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
     }
   ]
 }

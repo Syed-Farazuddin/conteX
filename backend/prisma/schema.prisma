@@ -1,0 +1,132 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum SocialProvider {
+  FACEBOOK
+  INSTAGRAM
+  GOOGLE_ANALYTICS
+}
+
+enum ConnectionStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  ERROR
+}
+
+model Organization {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users           User[]
+  socialConnections SocialConnection[]
+  analyticsEvents AnalyticsEvent[]
+}
+
+model User {
+  id             String        @id @default(uuid())
+  email          String        @unique
+  name           String?
+  passwordHash   String?
+  role           Role          @default(OWNER)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  organizationId String?
+
+  generations    Generation[]
+  refreshTokens  RefreshToken[]
+  analyticsEvents AnalyticsEvent[]
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// One row per connected external account (a Facebook Page, an IG Business
+// account, or a GA4 property). OAuth tokens are stored AES-256-GCM encrypted.
+model SocialConnection {
+  id               String           @id @default(uuid())
+  organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId   String
+  provider         SocialProvider
+  status           ConnectionStatus @default(ACTIVE)
+
+  // The external account this connection points at.
+  externalAccountId String          // FB page id / IG business account id / GA4 property id
+  accountName       String?
+  // Provider-specific extras (page id, IG user id, GA4 property display name, etc.)
+  metadata          Json?
+
+  accessTokenEnc   String           // encrypted access token
+  refreshTokenEnc  String?          // encrypted refresh token (Google; Meta uses long-lived access tokens)
+  tokenExpiresAt   DateTime?
+  scopes           String[]
+
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@unique([organizationId, provider, externalAccountId])
+  @@index([organizationId])
+}
+
+// Product-usage events emitted by the web/app (page views, clicks, generations).
+model AnalyticsEvent {
+  id             String   @id @default(uuid())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  user           User?    @relation(fields: [userId], references: [id])
+  userId         String?
+
+  eventType      String   // e.g. "page_view", "click", "generation_started"
+  path           String?  // route/screen where it happened
+  source         String?  // "web" | "app"
+  sessionId      String?
+  properties     Json?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, eventType])
+}
+
+model Generation {
+  id        String   @id @default(uuid())
+  prompt    String
+  style     String
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+}
+
+model Upload {
+  id        String   @id @default(uuid())
+  filename  String
+  url       String
+  createdAt DateTime @default(now())
+}

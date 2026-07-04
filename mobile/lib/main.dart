@@ -5,6 +5,7 @@ import "package:google_fonts/google_fonts.dart";
 import "app/app_routes.dart";
 import "app/route_observer.dart";
 import "config/api_config.dart";
+import "services/auth_service.dart";
 import "theme/app_theme.dart";
 
 Future<void> main() async {
@@ -26,6 +27,12 @@ Future<void> main() async {
   await dotenv.load(fileName: ".env.example");
   await dotenv.load(fileName: ".env", isOptional: true);
   apiBaseUrl = resolveApiBaseUrl();
+
+  // Restore any saved org session (best-effort; failures fall back to logged-out).
+  try {
+    await AuthService.instance.restore();
+  } catch (_) {}
+
   runApp(const ConteXApp());
 }
 

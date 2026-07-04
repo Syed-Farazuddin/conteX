@@ -5,6 +5,7 @@ import "package:google_fonts/google_fonts.dart";
 import "../app/app_routes.dart";
 import "../app/route_observer.dart";
 import "../models/saved_creation.dart";
+import "../services/auth_service.dart";
 import "../services/creation_history_service.dart";
 import "../theme/app_theme.dart";
 import "../widgets/ambient_background.dart";
@@ -230,6 +231,16 @@ class _LandingScreenState extends State<LandingScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const _HeroHeadline(),
+                          const SizedBox(height: 20),
+                          _AnalyticsEntryCard(
+                            onTap: () {
+                              final route =
+                                  AuthService.instance.isAuthenticated
+                                  ? AppRoutes.dashboard
+                                  : AppRoutes.login;
+                              Navigator.of(context).pushNamed(route);
+                            },
+                          ),
                           const SizedBox(height: 32),
                           CreationHistorySection(
                             creations: _history,
@@ -296,6 +307,72 @@ class _LandingScreenState extends State<LandingScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AnalyticsEntryCard extends StatelessWidget {
+  const _AnalyticsEntryCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0x668B5CF6)),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.violet.withValues(alpha: 0.18),
+                AppColors.surface.withValues(alpha: 0.7),
+              ],
+            ),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.insights_rounded, color: AppColors.violet),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Business Analytics",
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      "Connect Meta & Google to track your audience",
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_rounded,
+                color: AppColors.textMuted,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
